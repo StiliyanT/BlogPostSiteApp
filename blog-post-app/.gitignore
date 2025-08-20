@@ -76,3 +76,6 @@ playwright-report/
 cypress/videos/
 cypress/screenshots/
 cypress/downloads/
+
+# Local blog content (do not commit authored/imported posts)
+src/posts/
