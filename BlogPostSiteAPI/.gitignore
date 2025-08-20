@@ -1,0 +1,63 @@
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio / Rider / VS Code
+.vs/
+*.user
+*.suo
+*.userprefs
+*.csproj.user
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+*.nuget.props
+*.nuget.targets
+
+# Test results
+TestResults/
+*.trx
+*.coverage*
+*.coveragexml
+
+# ReSharper / JetBrains
+_ReSharper*/
+*.resharper
+*.DotSettings.user
+
+# Publish outputs / artifacts
+publish/
+artifacts/
+
+# ASP.NET static build outputs (keep authored assets)
+wwwroot/dist/
+wwwroot/**/*.map
+
+# Entity Framework Core
+# Migrations are source code; do not ignore the folder
+
+# Secrets (keep appsettings.* unless suffixed with .local)
+appsettings.*.local.json
+secrets.json
+
+# OS / misc
+.DS_Store
+Thumbs.db
+ehthumbs.db
+*.tmp
+*.cache
+*.bak
