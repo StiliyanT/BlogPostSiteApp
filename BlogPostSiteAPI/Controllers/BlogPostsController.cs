@@ -6,7 +6,7 @@ using BlogPostSiteAPI.Models;
 using BlogPostSiteAPI.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Microsoft.Identity.Client.Extensions.Msal;
+//using Microsoft.Identity.Client.Extensions.Msal;
 using Utils.BlogPostStatus;
 using Microsoft.AspNetCore.Authorization;
 

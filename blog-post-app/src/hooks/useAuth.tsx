@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState } from 'react';
+import { API_BASE } from '../lib/urls';
 
 type AuthState = {
   token: string | null;
@@ -47,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const login = async (email: string, password: string) => {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE || ''}/api/auth/login`, {
+  const res = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
@@ -72,8 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (email: string, password: string) => {
-    const base = import.meta.env.VITE_API_BASE || '';
-    const res = await fetch(`${base}/api/auth/register`, {
+  const res = await fetch(`${API_BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resendConfirmation = async (email: string) => {
-    await fetch(`${import.meta.env.VITE_API_BASE || ''}/api/auth/resend-confirmation`, {
+  await fetch(`${API_BASE}/api/auth/resend-confirmation`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })

@@ -10,6 +10,9 @@ using BlogPostSiteAPI.Models;
 using BlogPostSiteAPI.Services;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
+using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.HttpOverrides; // for forwarded headers
 
 namespace BlogPostSiteAPI
 {
@@ -29,6 +32,32 @@ namespace BlogPostSiteAPI
             {
                 // Helps if you have duplicate type names in different namespaces
                 c.CustomSchemaIds(type => type.FullName);
+
+                // JWT Bearer auth in Swagger UI
+                var jwtScheme = new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header,
+                    Description = "Enter 'Bearer {token}'"
+                };
+                c.AddSecurityDefinition("Bearer", jwtScheme);
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
+                });
             });
             builder.Services.AddContentStorage(builder.Configuration);
 
@@ -36,27 +65,87 @@ namespace BlogPostSiteAPI
                 o.MultipartBodyLengthLimit = 200_000_000; // 200MB
             });
 
-            builder.Services.AddCors(options =>
+            // CORS policy (explicit origins). Add your deployed frontend URL(s) via ALLOWED_ORIGINS env var or config.
+            const string cors = "_cors";
+            builder.Services.AddCors(o => o.AddPolicy(cors, p =>
             {
-                options.AddPolicy("vite", policy => policy
-                    // Allow any localhost port in dev to avoid CORS breakage when Vite picks a free port
-                    .SetIsOriginAllowed(origin =>
-                    {
-                        try
-                        {
-                            var uri = new Uri(origin);
-                            return uri.IsLoopback; // http(s)://localhost or 127.0.0.1
-                        }
-                        catch { return false; }
-                    })
-                    .AllowAnyHeader()
-                    .AllowAnyMethod()
-                    .WithExposedHeaders("Location")
-                );
-            });
+                // Collect explicit origins: default local dev ports + configured + env var
+                var configured = (builder.Configuration["AllowedOrigins"] ?? Environment.GetEnvironmentVariable("ALLOWED_ORIGINS") ?? "").
+                    Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+                configured.AddRange(new[] { "http://localhost:5173", "https://localhost:5173", "http://localhost:3000", "https://localhost:3000" });
+                // Distinct
+                var origins = configured.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                if (origins.Length > 0)
+                {
+                    p.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod().WithExposedHeaders("Location");
+                }
+                else
+                {
+                    p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod(); // fallback (dev only)
+                }
+            }));
 
-            builder.Services.AddDbContext<BlogDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+            // Database: MySQL (Pomelo). Supports Railway via env var DATABASE_URL or connection string in config.
+            builder.Services.AddDbContext<BlogDbContext>(opt =>
+            {
+                var cfg = builder.Configuration;
+                // Prefer explicit DefaultConnection from settings
+                var cs = cfg.GetConnectionString("DefaultConnection");
+                // Support user-secrets/env var style key (ConnectionStrings__DefaultConnection)
+                cs ??= Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+                // Fallbacks: common Railway/Heroku style envs
+                cs ??= Environment.GetEnvironmentVariable("DATABASE_URL");
+                cs ??= Environment.GetEnvironmentVariable("CLEARDB_DATABASE_URL");
+                cs ??= Environment.GetEnvironmentVariable("MYSQL_URL");
+                cs ??= Environment.GetEnvironmentVariable("JAWSDB_URL");
+                // Build from individual MYSQL* vars (Railway)
+                if (string.IsNullOrWhiteSpace(cs))
+                {
+                    var host = Environment.GetEnvironmentVariable("MYSQLHOST");
+                    var db = Environment.GetEnvironmentVariable("MYSQLDATABASE");
+                    var user = Environment.GetEnvironmentVariable("MYSQLUSER");
+                    var pass = Environment.GetEnvironmentVariable("MYSQLPASSWORD");
+                    var portStr = Environment.GetEnvironmentVariable("MYSQLPORT");
+                    if (!string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(db) && !string.IsNullOrWhiteSpace(user))
+                    {
+                        var port = int.TryParse(portStr, out var p) ? p : 3306;
+                        cs = $"Server={host};Port={port};Database={db};User={user};Password={pass};SslMode=Required;AllowPublicKeyRetrieval=True;";
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(cs))
+                {
+                    throw new InvalidOperationException("No MySQL connection string found. Set ConnectionStrings:DefaultConnection or DATABASE_URL.");
+                }
+
+                // If URL style (e.g., mysql://user:pass@host:port/db), convert to MySQL connection string
+                if (cs.StartsWith("mysql://", StringComparison.OrdinalIgnoreCase))
+                {
+                    var uri = new Uri(cs);
+                    var user = Uri.UnescapeDataString(uri.UserInfo.Split(':')[0]);
+                    var pass = Uri.UnescapeDataString(uri.UserInfo.Split(':').ElementAtOrDefault(1) ?? "");
+                    var host = uri.Host;
+                    var port = uri.Port > 0 ? uri.Port : 3306;
+                    var db = uri.AbsolutePath.Trim('/');
+                    cs = $"Server={host};Port={port};Database={db};User={user};Password={pass};SslMode=Required;AllowPublicKeyRetrieval=True;";
+                }
+
+                // Detect server version if possible; fallback to a pinned version for design-time (dotnet ef)
+                var serverVersion = (ServerVersion?)null;
+                try
+                {
+                    serverVersion = ServerVersion.AutoDetect(cs);
+                }
+                catch
+                {
+                    serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
+                }
+
+                opt.UseMySql(cs, serverVersion, mysql =>
+                {
+                    mysql.EnableRetryOnFailure(5);
+                });
+            });
 
             builder.Services
                 .AddIdentityCore<ApplicationUser>(o =>
@@ -127,26 +216,25 @@ namespace BlogPostSiteAPI
                 app.UseSwaggerUI();
             }
 
-            // Apply EF migrations (dev convenience) and log DB info
-            try
+            // Apply EF migrations on boot (auto-migrate)
+            using (var scope = app.Services.CreateScope())
             {
-                using var scope = app.Services.CreateScope();
-                var ctx = scope.ServiceProvider.GetRequiredService<BlogDbContext>();
-                // Ensure database schema is up to date (creates Identity tables, etc.)
-                ctx.Database.Migrate();
-                var conn = ctx.Database.GetDbConnection();
-                app.Logger.LogInformation("Using DB: {DataSource}/{Database}", conn.DataSource, conn.Database);
-                var postsCount = ctx.BlogPosts.Count();
-                app.Logger.LogInformation("BlogPosts rows: {Count}", postsCount);
-            }
-            catch (Exception ex)
-            {
-                app.Logger.LogWarning(ex, "Failed to run startup DB diagnostics");
+                try
+                {
+                    var ctx = scope.ServiceProvider.GetRequiredService<BlogDbContext>();
+                    ctx.Database.Migrate();
+                    var conn = ctx.Database.GetDbConnection();
+                    app.Logger.LogInformation("Using DB: {DataSource}/{Database}", conn.DataSource, conn.Database);
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogError(ex, "Database migration failed during startup");
+                }
             }
 
             app.UseRouting();
 
-            app.UseCors("vite");
+            app.UseCors(cors);
 
             app.UseContentStorageStaticFiles(); // <- serves /static/** from RootPhysicalPath
 
@@ -157,8 +245,23 @@ namespace BlogPostSiteAPI
 
             app.UseRateLimiter();
 
+            // Health endpoint for platform checks (idempotent, re-map safe)
+            app.MapGet("/health", () => Results.Ok("OK"));
 
             app.MapControllers();
+
+            // Bind to deployment platform's PORT (Render/Railway). Default 8080 if unset.
+            var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+            if (int.TryParse(port, out var portVal))
+            {
+                app.Urls.Add($"http://0.0.0.0:{portVal}");
+            }
+
+            // Forwarded headers (behind reverse proxy / load balancer)
+            app.UseForwardedHeaders(new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+            });
 
             app.Run();
         }

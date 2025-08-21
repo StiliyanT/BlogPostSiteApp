@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+import { API_BASE } from './urls';
 
 export type BlogPostListItem = {
   id: string;

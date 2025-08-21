@@ -1,4 +1,6 @@
-export const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/+$/, '');
+// Support both VITE_API_BASE (existing) and VITE_API_URL (deployment guide)
+const rawBase = (import.meta.env.VITE_API_BASE ?? import.meta.env.VITE_API_URL ?? '').toString();
+export const API_BASE = rawBase.replace(/\/+$/, '');
 
 export function toAbsolute(url: string) {
   if (!url) return url;

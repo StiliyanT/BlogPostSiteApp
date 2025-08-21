@@ -17,6 +17,7 @@ public class BlogDbContext : IdentityDbContext<ApplicationUser>
 
         modelBuilder.Entity<BlogPost>(b =>
         {
+            b.Property(p => p.Id).ValueGeneratedOnAdd();
             // enforce one-of-a-kind slug
             b.HasIndex(p => p.Slug).IsUnique();
 
@@ -35,5 +36,27 @@ public class BlogDbContext : IdentityDbContext<ApplicationUser>
              .HasForeignKey(p => p.CategoryId)
              .OnDelete(DeleteBehavior.SetNull);
         });
+
+        modelBuilder.Entity<Author>(b =>
+        {
+            b.Property(a => a.Id).ValueGeneratedOnAdd();
+        });
+
+        modelBuilder.Entity<Category>(b =>
+        {
+            b.Property(c => c.Id).ValueGeneratedOnAdd();
+        });
+
+    // MySQL-oriented conventions
+    // Avoid DB-level UUID() defaults for Guid PKs since some MySQL versions reject DEFAULT UUID().
+    // EF Core will generate Guid values client-side for keys on Add when not supplied.
+
+    // Set higher-precision datetime where appropriate (example on BlogPost timestamps)
+        modelBuilder.Entity<BlogPost>()
+            .Property(p => p.CreatedOn)
+            .HasColumnType("datetime(6)");
+        modelBuilder.Entity<BlogPost>()
+            .Property(p => p.ModifiedOn)
+            .HasColumnType("datetime(6)");
     }
 }
