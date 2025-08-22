@@ -13,6 +13,8 @@ using System.Threading.RateLimiting;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.HttpOverrides; // for forwarded headers
+using Microsoft.AspNetCore.ResponseCompression;
+using System.IO.Compression;
 
 namespace BlogPostSiteAPI
 {
@@ -26,6 +28,18 @@ namespace BlogPostSiteAPI
 
             
             builder.Services.AddControllers();
+
+            // Response Compression (useful on Azure; enable for HTTPS)
+            builder.Services.AddResponseCompression(o =>
+            {
+                o.EnableForHttps = true;
+                o.Providers.Add<GzipCompressionProvider>();
+                // (Brotli provider could be added if desired)
+            });
+            builder.Services.Configure<GzipCompressionProviderOptions>(o =>
+            {
+                o.Level = CompressionLevel.Fastest; // favor low latency; change to SmallestSize if bandwidth is critical
+            });
             builder.Services.AddEndpointsApiExplorer();
             //builder.Services.AddSwaggerGen();
             builder.Services.AddSwaggerGen(c =>
@@ -143,7 +157,8 @@ namespace BlogPostSiteAPI
 
                 opt.UseMySql(cs, serverVersion, mysql =>
                 {
-                    mysql.EnableRetryOnFailure(5);
+                    // Retry transient failures (e.g., cold start, brief network blips)
+                    mysql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
                 });
             });
 
@@ -210,7 +225,8 @@ namespace BlogPostSiteAPI
 
 
             // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+            var swaggerEnabled = app.Environment.IsDevelopment() || string.Equals(Environment.GetEnvironmentVariable("SWAGGER_ENABLED"), "true", StringComparison.OrdinalIgnoreCase);
+            if (swaggerEnabled)
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
@@ -250,18 +266,20 @@ namespace BlogPostSiteAPI
 
             app.MapControllers();
 
-            // Bind to deployment platform's PORT (Render/Railway). Default 8080 if unset.
-            var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-            if (int.TryParse(port, out var portVal))
-            {
-                app.Urls.Add($"http://0.0.0.0:{portVal}");
-            }
+            // Azure App Service supplies its own port; manual binding removed.
 
             // Forwarded headers (behind reverse proxy / load balancer)
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
             });
+
+            app.UseResponseCompression();
+
+            if (!app.Environment.IsDevelopment())
+            {
+                app.UseHsts();
+            }
 
             app.Run();
         }
