@@ -73,7 +73,7 @@ namespace BlogPostSiteAPI
                     }
                 });
             });
-            //builder.Services.AddContentStorage(builder.Configuration);
+            builder.Services.AddContentStorage(builder.Configuration);
 
             builder.Services.Configure<FormOptions>(o => {
                 o.MultipartBodyLengthLimit = 200_000_000; // 200MB
@@ -267,7 +267,15 @@ namespace BlogPostSiteAPI
 
             app.UseCors(cors);
 
-            //app.UseContentStorageStaticFiles(); // <- serves /static/** from RootPhysicalPath
+            // Serve static blog content (ensure directories initialized by hosted service)
+            try
+            {
+                app.UseContentStorageStaticFiles();
+            }
+            catch (Exception ex)
+            {
+                app.Logger.LogError(ex, "Failed to configure content storage static files");
+            }
 
             app.UseHttpsRedirection();
 
