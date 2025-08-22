@@ -124,16 +124,38 @@ namespace BlogPostSiteAPI
                     throw new InvalidOperationException("Missing connection string 'DefaultConnection'. Set it in appsettings or App Service Configuration.");
                 }
 
-                ServerVersion serverVersion;
+                // Log minimal DB info (no secrets)
                 try
                 {
-                    serverVersion = ServerVersion.AutoDetect(conn);
+                    var parts = conn.Split(';', StringSplitOptions.RemoveEmptyEntries);
+                    var safe = parts.Where(p => p.StartsWith("Server=", StringComparison.OrdinalIgnoreCase) ||
+                                                p.StartsWith("Host=", StringComparison.OrdinalIgnoreCase) ||
+                                                p.StartsWith("Database=", StringComparison.OrdinalIgnoreCase) ||
+                                                p.StartsWith("Port=", StringComparison.OrdinalIgnoreCase));
+                    Console.WriteLine("[Startup] Using MySQL connection parts: " + string.Join(';', safe));
                 }
-                catch (Exception ex)
+                catch { }
+
+                // Allow pinning server version to avoid AutoDetect blocking startup
+                var pinnedVersion = Environment.GetEnvironmentVariable("DB_SERVER_VERSION"); // e.g. 8.0.36
+                ServerVersion serverVersion;
+                if (!string.IsNullOrWhiteSpace(pinnedVersion) && Version.TryParse(pinnedVersion, out var ver))
                 {
-                    // Fallback to a reasonably current MySQL 8 version if AutoDetect cannot connect yet (firewall / cold start)
-                    Console.WriteLine($"[Startup] ServerVersion.AutoDetect failed: {ex.Message}. Falling back to 8.0.36.");
-                    serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
+                    serverVersion = new MySqlServerVersion(ver);
+                    Console.WriteLine($"[Startup] Using pinned MySQL server version {ver}");
+                }
+                else
+                {
+                    try
+                    {
+                        serverVersion = ServerVersion.AutoDetect(conn);
+                        Console.WriteLine($"[Startup] AutoDetected MySQL server version: {serverVersion}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Startup] ServerVersion.AutoDetect failed: {ex.Message}. Falling back to 8.0.36. Set DB_SERVER_VERSION to override.");
+                        serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
+                    }
                 }
 
                 opt.UseMySql(conn, serverVersion, mysql =>
@@ -212,19 +234,27 @@ namespace BlogPostSiteAPI
                 app.UseSwaggerUI();
             }
 
-            // Apply EF migrations on boot (auto-migrate)
-            using (var scope = app.Services.CreateScope())
+            var skipMigrations = string.Equals(Environment.GetEnvironmentVariable("SKIP_MIGRATIONS"), "true", StringComparison.OrdinalIgnoreCase);
+            if (skipMigrations)
             {
-                try
+                app.Logger.LogWarning("SKIP_MIGRATIONS=true - skipping automatic database migrations at startup.");
+            }
+            else
+            {
+                // Apply EF migrations on boot (auto-migrate)
+                using (var scope = app.Services.CreateScope())
                 {
-                    var ctx = scope.ServiceProvider.GetRequiredService<BlogDbContext>();
-                    ctx.Database.Migrate();
-                    var conn = ctx.Database.GetDbConnection();
-                    app.Logger.LogInformation("Using DB: {DataSource}/{Database}", conn.DataSource, conn.Database);
-                }
-                catch (Exception ex)
-                {
-                    app.Logger.LogError(ex, "Database migration failed during startup");
+                    try
+                    {
+                        var ctx = scope.ServiceProvider.GetRequiredService<BlogDbContext>();
+                        ctx.Database.Migrate();
+                        var dbConn = ctx.Database.GetDbConnection();
+                        app.Logger.LogInformation("Using DB: {DataSource}/{Database}", dbConn.DataSource, dbConn.Database);
+                    }
+                    catch (Exception ex)
+                    {
+                        app.Logger.LogError(ex, "Database migration failed during startup");
+                    }
                 }
             }
 
@@ -241,8 +271,9 @@ namespace BlogPostSiteAPI
 
             app.UseRateLimiter();
 
-            // Health endpoint for platform checks (idempotent, re-map safe)
+            // Health & root endpoints
             app.MapGet("/health", () => Results.Ok("OK"));
+            app.MapGet("/", () => Results.Ok(new { status = "ok", time = DateTime.UtcNow }));
 
             app.MapControllers();
 
