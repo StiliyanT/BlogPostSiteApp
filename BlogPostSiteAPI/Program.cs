@@ -73,7 +73,7 @@ namespace BlogPostSiteAPI
                     }
                 });
             });
-            builder.Services.AddContentStorage(builder.Configuration);
+            //builder.Services.AddContentStorage(builder.Configuration);
 
             builder.Services.Configure<FormOptions>(o => {
                 o.MultipartBodyLengthLimit = 200_000_000; // 200MB
@@ -267,7 +267,7 @@ namespace BlogPostSiteAPI
 
             app.UseCors(cors);
 
-            app.UseContentStorageStaticFiles(); // <- serves /static/** from RootPhysicalPath
+            //app.UseContentStorageStaticFiles(); // <- serves /static/** from RootPhysicalPath
 
             app.UseHttpsRedirection();
 
