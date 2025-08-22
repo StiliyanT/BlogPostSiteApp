@@ -6,8 +6,8 @@ name: Build and deploy ASP.Net Core app to Azure Web App - BlogPostApp
 on:
   push:
     branches:
-      - [main]
-      paths:
+      - main
+    paths:
       - 'BlogPostSiteAPI/**'
   workflow_dispatch:
 
@@ -66,3 +66,4 @@ jobs:
           package: .
 
           
+
