@@ -99,66 +99,16 @@ namespace BlogPostSiteAPI
                 }
             }));
 
-            // Database: MySQL (Pomelo). Supports Railway via env var DATABASE_URL or connection string in config.
+            // Database: simple MySQL registration using configured connection string (App Service / user-secrets / appsettings).
             builder.Services.AddDbContext<BlogDbContext>(opt =>
             {
-                var cfg = builder.Configuration;
-                // Prefer explicit DefaultConnection from settings
-                var cs = cfg.GetConnectionString("DefaultConnection");
-                // Support user-secrets/env var style key (ConnectionStrings__DefaultConnection)
-                cs ??= Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
-                // Fallbacks: common Railway/Heroku style envs
-                cs ??= Environment.GetEnvironmentVariable("DATABASE_URL");
-                cs ??= Environment.GetEnvironmentVariable("CLEARDB_DATABASE_URL");
-                cs ??= Environment.GetEnvironmentVariable("MYSQL_URL");
-                cs ??= Environment.GetEnvironmentVariable("JAWSDB_URL");
-                // Build from individual MYSQL* vars (Railway)
-                if (string.IsNullOrWhiteSpace(cs))
-                {
-                    var host = Environment.GetEnvironmentVariable("MYSQLHOST");
-                    var db = Environment.GetEnvironmentVariable("MYSQLDATABASE");
-                    var user = Environment.GetEnvironmentVariable("MYSQLUSER");
-                    var pass = Environment.GetEnvironmentVariable("MYSQLPASSWORD");
-                    var portStr = Environment.GetEnvironmentVariable("MYSQLPORT");
-                    if (!string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(db) && !string.IsNullOrWhiteSpace(user))
-                    {
-                        var port = int.TryParse(portStr, out var p) ? p : 3306;
-                        cs = $"Server={host};Port={port};Database={db};User={user};Password={pass};SslMode=Required;AllowPublicKeyRetrieval=True;";
-                    }
-                }
+                var conn = builder.Configuration.GetConnectionString("DefaultConnection")
+                           ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+                           ?? throw new InvalidOperationException("Missing connection string 'DefaultConnection'.");
 
-                if (string.IsNullOrWhiteSpace(cs))
+                opt.UseMySql(conn, ServerVersion.AutoDetect(conn), mysql =>
                 {
-                    throw new InvalidOperationException("No MySQL connection string found. Set ConnectionStrings:DefaultConnection or DATABASE_URL.");
-                }
-
-                // If URL style (e.g., mysql://user:pass@host:port/db), convert to MySQL connection string
-                if (cs.StartsWith("mysql://", StringComparison.OrdinalIgnoreCase))
-                {
-                    var uri = new Uri(cs);
-                    var user = Uri.UnescapeDataString(uri.UserInfo.Split(':')[0]);
-                    var pass = Uri.UnescapeDataString(uri.UserInfo.Split(':').ElementAtOrDefault(1) ?? "");
-                    var host = uri.Host;
-                    var port = uri.Port > 0 ? uri.Port : 3306;
-                    var db = uri.AbsolutePath.Trim('/');
-                    cs = $"Server={host};Port={port};Database={db};User={user};Password={pass};SslMode=Required;AllowPublicKeyRetrieval=True;";
-                }
-
-                // Detect server version if possible; fallback to a pinned version for design-time (dotnet ef)
-                var serverVersion = (ServerVersion?)null;
-                try
-                {
-                    serverVersion = ServerVersion.AutoDetect(cs);
-                }
-                catch
-                {
-                    serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
-                }
-
-                opt.UseMySql(cs, serverVersion, mysql =>
-                {
-                    // Retry transient failures (e.g., cold start, brief network blips)
-                    mysql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
+                    mysql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
                 });
             });
 
