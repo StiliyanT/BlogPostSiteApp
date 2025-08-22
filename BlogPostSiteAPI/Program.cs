@@ -102,8 +102,13 @@ namespace BlogPostSiteAPI
             // Database: simple MySQL registration using configured connection string (App Service / user-secrets / appsettings).
             builder.Services.AddDbContext<BlogDbContext>(opt =>
             {
-                var conn = builder.Configuration.GetConnectionString("DefaultConnection")
-                           ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+                var conn =
+                    builder.Configuration.GetConnectionString("DefaultConnection")
+                    ?? builder.Configuration["ConnectionStrings:DefaultConnection"]
+                    ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+                    ?? Environment.GetEnvironmentVariable("MYSQLCONNSTR_DefaultConnection")
+                    ?? Environment.GetEnvironmentVariable("CUSTOMCONNSTR_DefaultConnection")
+                    ?? throw new InvalidOperationException("Missing connection string 'DefaultConnection'.");
 
                 // Azure App Service also exposes connection strings as e.g. MYSQLCONNSTR_<Name>
                 if (string.IsNullOrWhiteSpace(conn))
@@ -158,7 +163,7 @@ namespace BlogPostSiteAPI
                     }
                 }
 
-                opt.UseMySql(conn, serverVersion, mysql =>
+                opt.UseMySql(conn, new MySqlServerVersion(new Version(8, 0, 36)), mysql =>
                 {
                     mysql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
                 });

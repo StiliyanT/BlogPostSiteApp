@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 namespace BlogPostSiteAPI.Infrastructure.Storage
 {
@@ -10,22 +12,12 @@ namespace BlogPostSiteAPI.Infrastructure.Storage
                 .Bind(config.GetSection(ContentStorageOptions.SectionName))
                 .ValidateDataAnnotations();
 
-            // We need IHostEnvironment to resolve relative paths. Use a temporary provider at startup time.
-            using (var sp = services.BuildServiceProvider())
-            {
-                var env = sp.GetRequiredService<IHostEnvironment>();
-                services.PostConfigure<ContentStorageOptions>(o =>
-                {
-                    var root = ResolvePath(o.RootPhysicalPath, env.ContentRootPath);
-                    // normalize request path
-                    if (string.IsNullOrWhiteSpace(o.PublicBasePath)) o.PublicBasePath = "/static";
-                    if (!o.PublicBasePath.StartsWith('/')) o.PublicBasePath = "/" + o.PublicBasePath.TrimStart('/');
-
-                    o.RootPhysicalPath = root;
-                    Directory.CreateDirectory(root);
-                    Directory.CreateDirectory(Path.Combine(root, "posts"));
-                });
-            }
+            // Defer directory creation until the app has fully built (avoid BuildServiceProvider during registration).
+            services.AddSingleton<IHostedService>(sp =>
+                new StorageStartupInitializer(
+                    sp.GetRequiredService<IOptions<ContentStorageOptions>>(),
+                    sp.GetRequiredService<IHostEnvironment>(),
+                    sp.GetRequiredService<ILogger<StorageStartupInitializer>>()));
 
             services.AddScoped<IBlogContentStorage, LocalBlogContentStorage>();
             return services;
@@ -44,4 +36,44 @@ namespace BlogPostSiteAPI.Infrastructure.Storage
             return path;
         }
     }
+}
+
+internal class StorageStartupInitializer : IHostedService
+{
+    private readonly IOptions<BlogPostSiteAPI.Infrastructure.Storage.ContentStorageOptions> _options;
+    private readonly IHostEnvironment _env;
+    private readonly ILogger<StorageStartupInitializer> _logger;
+
+    public StorageStartupInitializer(IOptions<BlogPostSiteAPI.Infrastructure.Storage.ContentStorageOptions> options, IHostEnvironment env, ILogger<StorageStartupInitializer> logger)
+    {
+        _options = options; _env = env; _logger = logger;
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var opt = _options.Value;
+            if (string.IsNullOrWhiteSpace(opt.PublicBasePath)) opt.PublicBasePath = "/static";
+            if (!opt.PublicBasePath.StartsWith('/')) opt.PublicBasePath = "/" + opt.PublicBasePath.TrimStart('/');
+            var root = opt.RootPhysicalPath;
+            if (string.IsNullOrWhiteSpace(root)) root = "content"; // default relative
+            root = root.Replace("${CONTENT_ROOT}", _env.ContentRootPath);
+            root = root.Replace("%CONTENT_ROOT%", _env.ContentRootPath);
+            root = root.Replace("{CONTENT_ROOT}", _env.ContentRootPath);
+            if (!Path.IsPathFullyQualified(root))
+                root = Path.GetFullPath(Path.Combine(_env.ContentRootPath, root));
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "posts"));
+            opt.RootPhysicalPath = root; // persist changed path
+            _logger.LogInformation("Content storage initialized at {Root}", root);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize content storage");
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
