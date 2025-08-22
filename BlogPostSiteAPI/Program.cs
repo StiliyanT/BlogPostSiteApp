@@ -103,10 +103,40 @@ namespace BlogPostSiteAPI
             builder.Services.AddDbContext<BlogDbContext>(opt =>
             {
                 var conn = builder.Configuration.GetConnectionString("DefaultConnection")
-                           ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-                           ?? throw new InvalidOperationException("Missing connection string 'DefaultConnection'.");
+                           ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
 
-                opt.UseMySql(conn, ServerVersion.AutoDetect(conn), mysql =>
+                // Azure App Service also exposes connection strings as e.g. MYSQLCONNSTR_<Name>
+                if (string.IsNullOrWhiteSpace(conn))
+                {
+                    foreach (System.Collections.DictionaryEntry kv in Environment.GetEnvironmentVariables())
+                    {
+                        var k = kv.Key?.ToString();
+                        if (k != null && k.StartsWith("MYSQLCONNSTR_", StringComparison.OrdinalIgnoreCase))
+                        {
+                            conn = kv.Value?.ToString();
+                            break;
+                        }
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(conn))
+                {
+                    throw new InvalidOperationException("Missing connection string 'DefaultConnection'. Set it in appsettings or App Service Configuration.");
+                }
+
+                ServerVersion serverVersion;
+                try
+                {
+                    serverVersion = ServerVersion.AutoDetect(conn);
+                }
+                catch (Exception ex)
+                {
+                    // Fallback to a reasonably current MySQL 8 version if AutoDetect cannot connect yet (firewall / cold start)
+                    Console.WriteLine($"[Startup] ServerVersion.AutoDetect failed: {ex.Message}. Falling back to 8.0.36.");
+                    serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
+                }
+
+                opt.UseMySql(conn, serverVersion, mysql =>
                 {
                     mysql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
                 });
