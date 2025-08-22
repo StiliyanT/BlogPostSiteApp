@@ -35,7 +35,7 @@ jobs:
 
       - name: Publish
         working-directory: BlogPostSiteAPI
-        run: dotnet publish ./BlogPostSiteAPI.csproj -c Release -o "${{ github.workspace }}\\publish" /p:UseAppHost=false
+        run: dotnet publish ./BlogPostSiteAPI.csproj -c Release -o "${{ github.workspace }}\publish" /p:UseAppHost=false
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -69,6 +69,4 @@ jobs:
         with:
           app-name: "BlogPostApp"
           slot-name: "Production"
-          package: "${{ github.workspace }}\\package"
-
-
+          package: "${{ github.workspace }}\package"
