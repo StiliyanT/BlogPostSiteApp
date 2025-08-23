@@ -374,6 +374,21 @@ namespace BlogPostSiteAPI
                 }
             });
 
+            // Diagnostic: attempt to enumerate blog posts to expose actual exception
+            app.MapGet("/diag/posts", async (IBlogPostsRepository repo) =>
+            {
+                try
+                {
+                    var posts = await repo.GetAllBlogPostsAsync();
+                    var slim = posts.Select(p => new { p.Id, p.Slug, p.Title }).ToList();
+                    return Results.Json(new { count = slim.Count, posts = slim });
+                }
+                catch (Exception ex)
+                {
+                    return Results.Json(new { error = ex.Message, stack = ex.StackTrace });
+                }
+            });
+
             // Test endpoint to verify JSON body writing pipeline (remove after diagnosing)
             app.MapGet("/diag/test", () => Results.Json(new[]{ "ok", DateTime.UtcNow.ToString("O") }));
 
