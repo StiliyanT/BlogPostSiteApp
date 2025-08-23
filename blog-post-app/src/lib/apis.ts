@@ -30,12 +30,7 @@ export type BlogPostDetail = {
 
 export async function getPosts(): Promise<BlogPostListItem[]> {
   const res = await fetch(`${API_BASE}/api/blogposts`);
-  if (!res.ok) throw new Error(`Failed to load posts (status ${res.status})`);
-  const ct = res.headers.get('content-type') || '';
-  if (ct.includes('text/html')) {
-    // Likely hitting Static Web App fallback (index.html) because API_BASE not set or route rewrite misconfigured.
-    throw new Error('API response was HTML, indicating API_BASE is incorrect or not set. Configure VITE_API_BASE or a /api/* rewrite.');
-  }
+  if (!res.ok) throw new Error('Failed to load posts');
   return res.json();
 }
 
