@@ -178,11 +178,24 @@ namespace BlogPostSiteAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateBlogPostAsync(BlogPost blogPost)
         {
-            blogPost.Id = Guid.NewGuid();
-
-            var newBlogPost = await _repo.CreateBlogPostAsync(blogPost);
-
-            return Created($"Entity with title {newBlogPost.Title} of type {nameof(newBlogPost)} was successfully created.", newBlogPost);
+            var posts = await _repo.GetAllBlogPostsAsync();
+            var list = posts
+                .Select(p => new BlogPostListItemResponse(p.Id, p.Slug, p.Title, p.Summary, p.CreatedOn, p.ModifiedOn, p.Status, p.Likes, p.Views))
+                .ToList();
+            try
+            {
+                var json = System.Text.Json.JsonSerializer.Serialize(list);
+                Console.WriteLine($"[BlogPostsController] Manual serialize count={list.Count} bytes={json.Length}");
+                Response.ContentType = "application/json";
+                Response.ContentLength = System.Text.Encoding.UTF8.GetByteCount(json);
+                await Response.WriteAsync(json);
+                return new EmptyResult();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[BlogPostsController] Serialize failed: {ex.Message}");
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
         //POST api/<BlogPostsController>/5/likes

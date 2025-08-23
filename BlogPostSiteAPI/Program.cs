@@ -257,12 +257,22 @@ namespace BlogPostSiteAPI
                 }
                 catch (Exception ex)
                 {
+                    // Root cause of 200 + empty body: previously exceptions were swallowed when detailedErrors=false.
+                    // Now always emit a 500 response (basic info) so callers know it failed.
                     app.Logger.LogError(ex, "Unhandled exception processing {Path}", ctx.Request.Path);
-                    if (detailedErrors && !ctx.Response.HasStarted)
+                    if (!ctx.Response.HasStarted)
                     {
+                        ctx.Response.Clear();
                         ctx.Response.StatusCode = 500;
                         ctx.Response.ContentType = "application/json";
-                        await ctx.Response.WriteAsJsonAsync(new { error = ex.Message, stack = ex.StackTrace });
+                        if (detailedErrors)
+                        {
+                            await ctx.Response.WriteAsJsonAsync(new { error = ex.Message, stack = ex.StackTrace });
+                        }
+                        else
+                        {
+                            await ctx.Response.WriteAsJsonAsync(new { error = "Internal Server Error" });
+                        }
                     }
                 }
             });
