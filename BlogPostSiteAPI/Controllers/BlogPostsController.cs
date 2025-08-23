@@ -41,10 +41,11 @@ namespace BlogPostSiteAPI.Controllers
         public async Task<IActionResult> GetAllBlogPostsAsync()
         {
             var posts = await _repo.GetAllBlogPostsAsync();
-            var dto = posts.Select(p => new BlogPostListItemResponse(
-                p.Id, p.Slug, p.Title, p.Summary, p.CreatedOn, p.ModifiedOn, p.Status, p.Likes, p.Views));
-
-            return Ok(dto);
+            var list = posts
+                .Select(p => new BlogPostListItemResponse(p.Id, p.Slug, p.Title, p.Summary, p.CreatedOn, p.ModifiedOn, p.Status, p.Likes, p.Views))
+                .ToList();
+            Console.WriteLine($"[BlogPostsController] Returning {list.Count} posts");
+            return Ok(list);
         }
 
         // GET api/<BlogPostsController>/5

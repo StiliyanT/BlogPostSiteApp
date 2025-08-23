@@ -291,19 +291,20 @@ namespace BlogPostSiteAPI
                 }
             }
 
+            // Reordered middleware: compression & forwarded headers early, then routing -> CORS -> auth
+            app.UseForwardedHeaders(new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+            });
+
+            app.UseResponseCompression();
+
             app.UseRouting();
 
             app.UseCors(cors);
 
-            // Serve static blog content (ensure directories initialized by hosted service)
-            try
-            {
-                app.UseContentStorageStaticFiles();
-            }
-            catch (Exception ex)
-            {
-                app.Logger.LogError(ex, "Failed to configure content storage static files");
-            }
+            try { app.UseContentStorageStaticFiles(); }
+            catch (Exception ex) { app.Logger.LogError(ex, "Failed to configure content storage static files"); }
 
             app.UseHttpsRedirection();
 
@@ -363,17 +364,10 @@ namespace BlogPostSiteAPI
                 }
             });
 
+            // Test endpoint to verify JSON body writing pipeline (remove after diagnosing)
+            app.MapGet("/diag/test", () => Results.Json(new[]{ "ok", DateTime.UtcNow.ToString("O") }));
+
             app.MapControllers();
-
-            // Azure App Service supplies its own port; manual binding removed.
-
-            // Forwarded headers (behind reverse proxy / load balancer)
-            app.UseForwardedHeaders(new ForwardedHeadersOptions
-            {
-                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-            });
-
-            app.UseResponseCompression();
 
             if (!app.Environment.IsDevelopment())
             {
