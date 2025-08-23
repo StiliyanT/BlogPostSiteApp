@@ -31,14 +31,18 @@ export type BlogPostDetail = {
 export async function getPosts(): Promise<BlogPostListItem[]> {
   const res = await fetch(`${API_BASE}/api/blogposts`);
   if (!res.ok) throw new Error('Failed to load posts');
-  return res.json();
+  const text = await res.text();
+  if (!text) return [];
+  try { return JSON.parse(text); } catch { throw new Error('Invalid JSON from posts endpoint'); }
 }
 
 export async function getPostBySlug(slug: string): Promise<BlogPostDetail> {
   const res = await fetch(`${API_BASE}/api/blogposts/slug/${encodeURIComponent(slug)}`);
   if (res.status === 404) throw new Error('not-found');
   if (!res.ok) throw new Error('Failed to load post');
-  return res.json();
+  const txt = await res.text();
+  if (!txt) throw new Error('Empty response for post');
+  try { return JSON.parse(txt); } catch { throw new Error('Invalid JSON for post'); }
 }
 
 export async function likePost(slug: string): Promise<number | null> {
@@ -101,7 +105,9 @@ export async function uploadPostZip(params: { file: File; slug?: string; token: 
     body: fd,
   });
   if (!res.ok) throw new Error('Failed to upload zip');
-  return res.json();
+  const body = await res.text();
+  if (!body) return {};
+  try { return JSON.parse(body); } catch { return {}; }
 }
 
 // Contact form API
