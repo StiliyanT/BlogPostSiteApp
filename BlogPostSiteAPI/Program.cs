@@ -243,6 +243,30 @@ namespace BlogPostSiteAPI
                 app.UseSwaggerUI();
             }
 
+            // Lightweight diagnostics middleware (enable by setting DETAILED_ERRORS=true)
+            var detailedErrors = string.Equals(Environment.GetEnvironmentVariable("DETAILED_ERRORS"), "true", StringComparison.OrdinalIgnoreCase);
+            if (detailedErrors && app.Environment.IsProduction())
+            {
+                app.Logger.LogWarning("DETAILED_ERRORS=true - exposing stack traces in responses. Disable in production once debugging is finished.");
+            }
+            app.Use(async (ctx, next) =>
+            {
+                try
+                {
+                    await next();
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogError(ex, "Unhandled exception processing {Path}", ctx.Request.Path);
+                    if (detailedErrors && !ctx.Response.HasStarted)
+                    {
+                        ctx.Response.StatusCode = 500;
+                        ctx.Response.ContentType = "application/json";
+                        await ctx.Response.WriteAsJsonAsync(new { error = ex.Message, stack = ex.StackTrace });
+                    }
+                }
+            });
+
             var skipMigrations = string.Equals(Environment.GetEnvironmentVariable("SKIP_MIGRATIONS"), "true", StringComparison.OrdinalIgnoreCase);
             if (skipMigrations)
             {
@@ -319,6 +343,19 @@ namespace BlogPostSiteAPI
                     }
 
                     return Results.Json(new { canConnect, pending, applied, tables });
+                }
+                catch (Exception ex)
+                {
+                    return Results.Json(new { error = ex.Message, stack = ex.StackTrace });
+                }
+            });
+
+            app.MapGet("/diag/pingdb", async (BlogDbContext ctx) =>
+            {
+                try
+                {
+                    await ctx.Database.ExecuteSqlRawAsync("SELECT 1");
+                    return Results.Ok("Database reachable");
                 }
                 catch (Exception ex)
                 {
