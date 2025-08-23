@@ -15,6 +15,7 @@ using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.HttpOverrides; // for forwarded headers
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
+using Microsoft.Extensions.Logging; // logging filters
 
 namespace BlogPostSiteAPI
 {
@@ -163,11 +164,14 @@ namespace BlogPostSiteAPI
                     }
                 }
 
-                opt.UseMySql(conn, new MySqlServerVersion(new Version(8, 0, 36)), mysql =>
+                // IMPORTANT: use detected/pinned serverVersion (was previously ignored in favor of a hard-coded version)
+                opt.UseMySql(conn, serverVersion, mysql =>
                 {
                     mysql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
                 });
             });
+            // Increase EF Core command logging to surface SQL / potential table-not-found errors (Information level)
+            builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Information);
 
             builder.Services
                 .AddIdentityCore<ApplicationUser>(o =>
@@ -287,6 +291,40 @@ namespace BlogPostSiteAPI
             // Health & root endpoints
             app.MapGet("/health", () => Results.Ok("OK"));
             app.MapGet("/", () => Results.Ok(new { status = "ok", time = DateTime.UtcNow }));
+
+            // Diagnostics endpoint to help debug 500s (REMOVE or secure once issue resolved)
+            app.MapGet("/diag/db", async (BlogDbContext ctx) =>
+            {
+                try
+                {
+                    var pending = await ctx.Database.GetPendingMigrationsAsync();
+                    var applied = await ctx.Database.GetAppliedMigrationsAsync();
+                    var canConnect = await ctx.Database.CanConnectAsync();
+                    var tables = new List<string>();
+                    try
+                    {
+                        var conn = ctx.Database.GetDbConnection();
+                        await conn.OpenAsync();
+                        using var cmd = conn.CreateCommand();
+                        cmd.CommandText = "SHOW TABLES"; // MySQL specific
+                        using var reader = await cmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
+                        {
+                            tables.Add(reader.GetString(0));
+                        }
+                    }
+                    catch (Exception exInner)
+                    {
+                        return Results.Json(new { canConnect, pending, applied, error = exInner.Message });
+                    }
+
+                    return Results.Json(new { canConnect, pending, applied, tables });
+                }
+                catch (Exception ex)
+                {
+                    return Results.Json(new { error = ex.Message, stack = ex.StackTrace });
+                }
+            });
 
             app.MapControllers();
 
