@@ -178,24 +178,22 @@ namespace BlogPostSiteAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateBlogPostAsync(BlogPost blogPost)
         {
-            var posts = await _repo.GetAllBlogPostsAsync();
-            var list = posts
-                .Select(p => new BlogPostListItemResponse(p.Id, p.Slug, p.Title, p.Summary, p.CreatedOn, p.ModifiedOn, p.Status, p.Likes, p.Views))
-                .ToList();
-            try
+            if (blogPost == null) return BadRequest();
+            // Basic server-side initialization
+            blogPost.Id = Guid.NewGuid();
+            blogPost.CreatedOn = DateTime.UtcNow;
+            blogPost.ModifiedOn = blogPost.CreatedOn;
+            if (string.IsNullOrWhiteSpace(blogPost.Slug))
             {
-                var json = System.Text.Json.JsonSerializer.Serialize(list);
-                Console.WriteLine($"[BlogPostsController] Manual serialize count={list.Count} bytes={json.Length}");
-                Response.ContentType = "application/json";
-                Response.ContentLength = System.Text.Encoding.UTF8.GetByteCount(json);
-                await Response.WriteAsync(json);
-                return new EmptyResult();
+                // naive slug generation from title
+                blogPost.Slug = blogPost.Title
+                    .Trim()
+                    .ToLowerInvariant()
+                    .Replace(' ', '-')
+                    .Replace("--", "-");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[BlogPostsController] Serialize failed: {ex.Message}");
-                return StatusCode(500, new { error = ex.Message });
-            }
+            var created = await _repo.CreateBlogPostAsync(blogPost);
+            return CreatedAtAction(nameof(GetBlogPostByIdAsync), new { id = created.Id }, created);
         }
 
         //POST api/<BlogPostsController>/5/likes

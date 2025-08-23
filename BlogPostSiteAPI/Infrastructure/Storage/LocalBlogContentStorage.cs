@@ -17,10 +17,34 @@ namespace BlogPostSiteAPI.Infrastructure.Storage
     {
         private readonly ContentStorageOptions _opts;
 
-        public LocalBlogContentStorage(IOptions<ContentStorageOptions> options)
+    public LocalBlogContentStorage(IOptions<ContentStorageOptions> options, ILogger<LocalBlogContentStorage> logger = null!)
         {
             _opts = options.Value;
-            Directory.CreateDirectory(_opts.RootPhysicalPath);
+            // Directory creation is handled by StorageStartupInitializer. Here we just verify or fallback.
+            try
+            {
+                if (!Directory.Exists(_opts.RootPhysicalPath))
+                {
+                    Directory.CreateDirectory(_opts.RootPhysicalPath);
+                }
+        logger?.LogInformation("LocalBlogContentStorage using root {Root}", _opts.RootPhysicalPath);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Fallback to per-process temp folder to keep API functional (diagnostic log recommended)
+                var tempRoot = Path.Combine(Path.GetTempPath(), "blog-content-fallback");
+                try
+                {
+                    Directory.CreateDirectory(tempRoot);
+                    _opts.RootPhysicalPath = tempRoot;
+            logger?.LogWarning("Content root inaccessible, fell back to {Fallback}", tempRoot);
+                }
+                catch
+                {
+                    // If this also fails, rethrow original to surface clearly
+                    throw;
+                }
+            }
         }
 
         public async Task<SaveResult> SaveFromZipAsync(IFormFile zip, string? preferredSlug, CancellationToken ct)

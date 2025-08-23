@@ -28,7 +28,16 @@ namespace BlogPostSiteAPI
             // Add services to the container.
 
             
-            builder.Services.AddControllers();
+            builder.Services.AddControllers().AddJsonOptions(o =>
+            {
+                // Investigative: relax potential serializer issues
+                o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+                o.JsonSerializerOptions.WriteIndented = false;
+            });
+            builder.Services.Configure<Microsoft.AspNetCore.Mvc.MvcOptions>(opts =>
+            {
+                opts.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true; // reduce noisy model state errors during debug
+            });
 
             // Response Compression (useful on Azure; enable for HTTPS)
             builder.Services.AddResponseCompression(o =>
@@ -257,14 +266,16 @@ namespace BlogPostSiteAPI
                 }
                 catch (Exception ex)
                 {
-                    // Root cause of 200 + empty body: previously exceptions were swallowed when detailedErrors=false.
-                    // Now always emit a 500 response (basic info) so callers know it failed.
                     app.Logger.LogError(ex, "Unhandled exception processing {Path}", ctx.Request.Path);
                     if (!ctx.Response.HasStarted)
                     {
                         ctx.Response.Clear();
                         ctx.Response.StatusCode = 500;
                         ctx.Response.ContentType = "application/json";
+                        // Always surface minimal message via header to aid prod diagnostics (shortened & sanitized)
+                        var msg = (ex.Message ?? "").Replace('\n',' ').Replace('\r',' ');
+                        if (msg.Length > 180) msg = msg.Substring(0, 180);
+                        ctx.Response.Headers["X-Error-Message"] = msg;
                         if (detailedErrors)
                         {
                             await ctx.Response.WriteAsJsonAsync(new { error = ex.Message, stack = ex.StackTrace });
@@ -308,6 +319,22 @@ namespace BlogPostSiteAPI
             });
 
             app.UseResponseCompression();
+
+            app.Use(async (ctx, next) =>
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                app.Logger.LogInformation("[TRACE] -> {Method} {Path}", ctx.Request.Method, ctx.Request.Path);
+                try
+                {
+                    await next();
+                    app.Logger.LogInformation("[TRACE] <- {Status} {Method} {Path} {Elapsed}ms", ctx.Response.StatusCode, ctx.Request.Method, ctx.Request.Path, sw.ElapsedMilliseconds);
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogError(ex, "[TRACE] EX {Method} {Path} {Elapsed}ms", ctx.Request.Method, ctx.Request.Path, sw.ElapsedMilliseconds);
+                    throw;
+                }
+            });
 
             app.UseRouting();
 
