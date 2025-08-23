@@ -1,6 +1,6 @@
-# React + TypeScript + Vite
+# Lumora
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Lumora is a React + TypeScript + Vite application for publishing and browsing blog posts.
 
 Currently, two official plugins are available:
 

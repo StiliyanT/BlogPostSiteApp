@@ -179,7 +179,7 @@ const NavBar: FC = () => {
         {/* Website name on the left */}
         <div className={styles.left}>
           <Link to="/" style={{ textDecoration: 'none' }}>
-            <span className={styles.brand}>topalov</span>
+            <span className={styles.brand}>Lumora</span>
           </Link>
         </div>
         {/* Mobile menu button */}

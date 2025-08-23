@@ -1,5 +1,5 @@
 {
-  "name": "blog-post-app",
+  "name": "lumora",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -26,10 +26,10 @@
     "typescript-eslint": "^8.35.1",
     "vite": "^5.4.19"
   },
-  "description": "This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.",
+  "description": "Lumora web app (React + Vite) for publishing and reading blog posts.",
   "main": "eslint.config.js",
   "keywords": [],
-  "author": "",
+  "author": "Lumora",
   "license": "ISC",
   "dependencies": {
     "@fluentui/react-components": "^9.68.2",
