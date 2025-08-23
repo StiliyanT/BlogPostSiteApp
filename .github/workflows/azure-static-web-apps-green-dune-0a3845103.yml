@@ -1,46 +1,54 @@
-name: Azure Static Web Apps CI/CD
+name: Deploy Lumora Frontend (Azure Static Web Apps)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+    paths:
+      - 'blog-post-app/**'
+      - '.github/workflows/static-web-app.yml'
   pull_request:
-    types: [opened, synchronize, reopened, closed]
-    branches:
-      - main
+    types: [opened, synchronize, reopened]
+    branches: [ main ]
 
 jobs:
-  build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+  build_and_deploy:
     runs-on: ubuntu-latest
-    name: Build and Deploy Job
+    name: Build and Deploy
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-          lfs: false
-      - name: Build And Deploy
-        id: builddeploy
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GREEN_DUNE_0A3845103 }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
-          action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "./blog-post-app" # App source code path
-          api_location: "" # Api source code path - optional
-          output_location: "build" # Built app content directory - optional
-          ###### End of Repository/Build Configurations ######
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
-    steps:
-      - name: Close Pull Request
-        id: closepullrequest
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: blog-post-app/package.json
+
+      - name: Install deps
+        working-directory: blog-post-app
+        run: npm ci
+
+      - name: Build
+        working-directory: blog-post-app
+        env:
+          VITE_API_BASE: ${{ secrets.API_BASE_URL }}
+        run: npm run build
+
+      - name: Upload artifact (build)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumora-dist
+          path: blog-post-app/dist
+
+      - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GREEN_DUNE_0A3845103 }}
-          action: "close"
+            azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+            repo_token: ${{ secrets.GITHUB_TOKEN }}
+            action: 'upload'
+            app_location: 'blog-post-app'
+            output_location: 'dist'
+            config_file_location: 'blog-post-app'
+        env:
+            VITE_API_BASE: ${{ secrets.API_BASE_URL }}
