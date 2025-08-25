@@ -37,12 +37,28 @@ namespace BlogPostSiteAPI.Controllers
             if (!result.Succeeded) return BadRequest(result.Errors);
 
             // Send confirmation email
-            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var url = BuildConfirmUrl(user.Id, token);
-            var sender = HttpContext.RequestServices.GetRequiredService<BlogPostSiteAPI.Services.IEmailSender>();
-            await sender.SendAsync(user.Email!, "Confirm your email", $"Welcome! Please confirm your account by visiting: {url}");
-
-            return Ok(new { requiresEmailConfirmation = true });
+            var emailSection = _config.GetSection("Email:Smtp");
+            var disableEmail = string.Equals(_config["Email:Disable"], "true", StringComparison.OrdinalIgnoreCase);
+            bool sent = false;
+            string? error = null;
+            if (!disableEmail)
+            {
+                try
+                {
+                    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                    var url = BuildConfirmUrl(user.Id, token);
+                    var sender = HttpContext.RequestServices.GetRequiredService<BlogPostSiteAPI.Services.IEmailSender>();
+                    await sender.SendAsync(user.Email!, "Confirm your email", $"Welcome! Please confirm your account by visiting: {url}");
+                    sent = true;
+                }
+                catch (Exception ex)
+                {
+                    HttpContext.RequestServices.GetRequiredService<ILogger<AuthController>>()
+                        .LogError(ex, "Registration email failed for {Email}", user.Email);
+                    error = ex.Message;
+                }
+            }
+            return Ok(new { requiresEmailConfirmation = true, emailSent = sent, emailError = sent ? null : error });
         }
 
         [HttpPost("login")]
