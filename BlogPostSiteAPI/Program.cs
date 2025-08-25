@@ -193,7 +193,11 @@ namespace BlogPostSiteAPI
                 .AddDefaultTokenProviders();
 
             var jwtSection = builder.Configuration.GetSection("Jwt");
-            var jwtKey = jwtSection["Key"] ?? "dev-insecure-key-change-me-0123456789abcdef0123456789";
+                var jwtKey = jwtSection["Key"] ?? Environment.GetEnvironmentVariable("Jwt__Key") ?? "dev-insecure-key-change-me-0123456789abcdef0123456789"; // >=32 chars
+            if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
+            {
+                throw new InvalidOperationException("JWT signing key too short. Provide a key at least 32 bytes (256 bits) for HS256 via configuration key Jwt:Key or env var Jwt__Key.");
+            }
             var jwtIssuer = jwtSection["Issuer"] ?? "BlogPostSiteAPI";
             var jwtAudience = jwtSection["Audience"] ?? "BlogPostSiteApp";
 
@@ -295,6 +299,39 @@ namespace BlogPostSiteAPI
             }
             else
             {
+            // Optional admin seeding via environment variable SEED_ADMIN_ON_STARTUP=true
+            if (string.Equals(Environment.GetEnvironmentVariable("SEED_ADMIN_ON_STARTUP"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                using var seedScope = app.Services.CreateScope();
+                try
+                {
+                    var userMgr = seedScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+                    var roleMgr = seedScope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+                    var adminEmail = Environment.GetEnvironmentVariable("ADMIN_EMAIL") ?? "admin@example.com";
+                    var adminPassword = Environment.GetEnvironmentVariable("ADMIN_PASSWORD") ?? "Admin123$"; // ensure meets Identity password policy
+                    if (!roleMgr.RoleExistsAsync("Admin").GetAwaiter().GetResult())
+                        roleMgr.CreateAsync(new IdentityRole("Admin")).GetAwaiter().GetResult();
+                    var adminUser = userMgr.FindByEmailAsync(adminEmail).GetAwaiter().GetResult();
+                    if (adminUser == null)
+                    {
+                        adminUser = new ApplicationUser { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
+                        var create = userMgr.CreateAsync(adminUser, adminPassword).GetAwaiter().GetResult();
+                        if (!create.Succeeded)
+                        {
+                            app.Logger.LogWarning("Admin seed failed: {Errors}", string.Join(',', create.Errors.Select(e => e.Code)));
+                        }
+                    }
+                    if (adminUser != null && !userMgr.IsInRoleAsync(adminUser, "Admin").GetAwaiter().GetResult())
+                    {
+                        userMgr.AddToRoleAsync(adminUser, "Admin").GetAwaiter().GetResult();
+                    }
+                    app.Logger.LogInformation("Admin seeding completed (user: {Email})", adminEmail);
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogError(ex, "Admin seeding failed");
+                }
+            }
                 // Apply EF migrations on boot (auto-migrate)
                 using (var scope = app.Services.CreateScope())
                 {

@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using BlogPostSiteAPI.Models;
+using BlogPostSiteAPI.Contracts.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -25,10 +26,7 @@ namespace BlogPostSiteAPI.Controllers
             _config = config;
         }
 
-    public record RegisterRequest(string Email, string Password);
-        public record LoginRequest(string Email, string Password);
-    public record ConfirmEmailRequest(string UserId, string Token);
-    public record ResendRequest(string Email);
+    // Request DTOs moved to Contracts.Auth (top-level) for Swagger schema resolution
 
         [HttpPost("register")]
         [AllowAnonymous]
@@ -52,13 +50,25 @@ namespace BlogPostSiteAPI.Controllers
         public async Task<IActionResult> Login([FromBody] LoginRequest req)
         {
             var user = await _userManager.FindByEmailAsync(req.Email);
-            if (user == null) return Unauthorized();
+            if (user == null)
+            {
+                HttpContext.RequestServices.GetRequiredService<ILogger<AuthController>>()
+                    .LogInformation("Login failed: user not found for {Email}", req.Email);
+                return Unauthorized();
+            }
 
             var pwOk = await _userManager.CheckPasswordAsync(user, req.Password);
-            if (!pwOk) return Unauthorized();
+            if (!pwOk)
+            {
+                HttpContext.RequestServices.GetRequiredService<ILogger<AuthController>>()
+                    .LogInformation("Login failed: bad password for {Email}", req.Email);
+                return Unauthorized();
+            }
 
             if (!user.EmailConfirmed)
             {
+                HttpContext.RequestServices.GetRequiredService<ILogger<AuthController>>()
+                    .LogInformation("Login failed: email not confirmed for {Email}", req.Email);
                 return Unauthorized(new { error = "Email not confirmed" });
             }
 
@@ -149,6 +159,11 @@ namespace BlogPostSiteAPI.Controllers
             var key = jwtSection["Key"] ?? "dev-insecure-key-change-me";
             var issuer = jwtSection["Issuer"] ?? "BlogPostSiteAPI";
             var audience = jwtSection["Audience"] ?? "BlogPostSiteApp";
+
+            if (Encoding.UTF8.GetByteCount(key) < 32)
+            {
+                throw new InvalidOperationException("JWT key length insufficient (<32 bytes). Configure Jwt:Key with a secure 32+ byte secret.");
+            }
 
             var claims = new List<Claim>
             {
