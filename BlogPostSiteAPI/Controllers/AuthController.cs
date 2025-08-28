@@ -55,12 +55,20 @@ namespace BlogPostSiteAPI.Controllers
                         return string.IsNullOrWhiteSpace(s) ? null : s;
                     }
 
-                    var hostRaw = _config["Email:Smtp:Host"]
-                               ?? Environment.GetEnvironmentVariable("Email__Smtp__Host")
-                               ?? Environment.GetEnvironmentVariable("EMAIL__SMTP__HOST")
-                               ?? Environment.GetEnvironmentVariable("EMAIL_SMTP_HOST")
-                               ?? Environment.GetEnvironmentVariable("SMTP_HOST");
-                    var host = Clean(hostRaw);
+                    // Evaluate each candidate and take the first non-empty cleaned value
+                    var candCfg = _config["Email:Smtp:Host"];
+                    var candA = Environment.GetEnvironmentVariable("Email__Smtp__Host");
+                    var candB = Environment.GetEnvironmentVariable("EMAIL__SMTP__HOST");
+                    var candC = Environment.GetEnvironmentVariable("EMAIL_SMTP_HOST");
+                    var candD = Environment.GetEnvironmentVariable("SMTP_HOST");
+
+                    var cCfg = Clean(candCfg);
+                    var cA = Clean(candA);
+                    var cB = Clean(candB);
+                    var cC = Clean(candC);
+                    var cD = Clean(candD);
+
+                    var host = cCfg ?? cA ?? cB ?? cC ?? cD;
                 if (string.IsNullOrWhiteSpace(host))
                 {
                     // Build masked diagnostic info (no secrets)
