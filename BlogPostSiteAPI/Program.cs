@@ -456,31 +456,41 @@ namespace BlogPostSiteAPI
             // Diagnostic: report SMTP-related configuration/env vars present in the running process
             app.MapGet("/diag/smtp", (HttpContext http) =>
             {
-                var cfg = http.RequestServices.GetRequiredService<IConfiguration>();
-                string? cfgHost = cfg["Email:Smtp:Host"];
-                string? env1 = Environment.GetEnvironmentVariable("Email__Smtp__Host");
-                string? env2 = Environment.GetEnvironmentVariable("EMAIL__SMTP__HOST");
-                string? env3 = Environment.GetEnvironmentVariable("EMAIL_SMTP_HOST");
-                string? env4 = Environment.GetEnvironmentVariable("SMTP_HOST");
-
-                string? detected = cfgHost ?? env1 ?? env2 ?? env3 ?? env4;
-
-                string? mask(string? v)
+                try
                 {
-                    if (string.IsNullOrWhiteSpace(v)) return null;
-                    if (v.Length <= 6) return "***";
-                    return v.Substring(0, 3) + "***" + v.Substring(v.Length - 3);
+                    var cfg = app.Services.GetService<IConfiguration>();
+                    string? cfgHost = cfg?["Email:Smtp:Host"];
+                    string? env1 = Environment.GetEnvironmentVariable("Email__Smtp__Host");
+                    string? env2 = Environment.GetEnvironmentVariable("EMAIL__SMTP__HOST");
+                    string? env3 = Environment.GetEnvironmentVariable("EMAIL_SMTP_HOST");
+                    string? env4 = Environment.GetEnvironmentVariable("SMTP_HOST");
+
+                    string? detected = cfgHost ?? env1 ?? env2 ?? env3 ?? env4;
+
+                    string? masked = null;
+                    if (!string.IsNullOrWhiteSpace(detected))
+                    {
+                        var v = detected!;
+                        masked = v.Length <= 6 ? "***" : v.Substring(0, 3) + "***" + v.Substring(v.Length - 3);
+                    }
+
+                    var result = new
+                    {
+                        configured = !string.IsNullOrWhiteSpace(cfgHost),
+                        env_Email__Smtp__Host = !string.IsNullOrWhiteSpace(env1),
+                        env_EMAIL__SMTP__HOST = !string.IsNullOrWhiteSpace(env2),
+                        env_EMAIL_SMTP_HOST = !string.IsNullOrWhiteSpace(env3),
+                        env_SMTP_HOST = !string.IsNullOrWhiteSpace(env4),
+                        detected = masked
+                    };
+
+                    return Results.Json(result);
                 }
-
-                return Results.Json(new
+                catch (Exception ex)
                 {
-                    configured = !string.IsNullOrWhiteSpace(cfgHost),
-                    env_Email__Smtp__Host = !string.IsNullOrWhiteSpace(env1),
-                    env_EMAIL__SMTP__HOST = !string.IsNullOrWhiteSpace(env2),
-                    env_EMAIL_SMTP_HOST = !string.IsNullOrWhiteSpace(env3),
-                    env_SMTP_HOST = !string.IsNullOrWhiteSpace(env4),
-                    detected = mask(detected)
-                });
+                    app.Logger.LogError(ex, "/diag/smtp handler failed");
+                    return Results.Json(new { error = ex.Message });
+                }
             });
 
             // Test endpoint to verify JSON body writing pipeline (remove after diagnosing)
