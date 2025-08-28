@@ -481,7 +481,12 @@ namespace BlogPostSiteAPI
                         ["env_EMAIL__SMTP__HOST"] = !string.IsNullOrWhiteSpace(env2),
                         ["env_EMAIL_SMTP_HOST"] = !string.IsNullOrWhiteSpace(env3),
                         ["env_SMTP_HOST"] = !string.IsNullOrWhiteSpace(env4),
-                        ["detected"] = masked
+                        ["env_Email__Smtp__Host_len"] = env1?.Length ?? 0,
+                        ["env_EMAIL__SMTP__HOST_len"] = env2?.Length ?? 0,
+                        ["env_EMAIL_SMTP_HOST_len"] = env3?.Length ?? 0,
+                        ["env_SMTP_HOST_len"] = env4?.Length ?? 0,
+                        ["detected"] = masked,
+                        ["detected_len"] = detected?.Length ?? 0
                     };
 
                     return Results.Json(dict);
