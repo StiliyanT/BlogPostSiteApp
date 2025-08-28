@@ -63,7 +63,31 @@ namespace BlogPostSiteAPI.Controllers
                     var host = Clean(hostRaw);
                 if (string.IsNullOrWhiteSpace(host))
                 {
-                    error = "SMTP Host is not configured (Email:Smtp:Host or SMTP_HOST environment variable).";
+                    // Build masked diagnostic info (no secrets)
+                    string Mask(string? v)
+                    {
+                        if (string.IsNullOrWhiteSpace(v)) return "<empty>";
+                        if (v.Length <= 6) return "***";
+                        return v.Substring(0, 3) + "***" + v.Substring(v.Length - 3);
+                    }
+
+                    var cfgHostRaw = _config["Email:Smtp:Host"];
+                    var envA = Environment.GetEnvironmentVariable("Email__Smtp__Host");
+                    var envB = Environment.GetEnvironmentVariable("EMAIL__SMTP__HOST");
+                    var envC = Environment.GetEnvironmentVariable("EMAIL_SMTP_HOST");
+                    var envD = Environment.GetEnvironmentVariable("SMTP_HOST");
+
+                    var diag = new {
+                        cfg = string.IsNullOrWhiteSpace(cfgHostRaw) ? "<empty>" : Mask(cfgHostRaw),
+                        Email__Smtp__Host = string.IsNullOrWhiteSpace(envA) ? "<empty>" : Mask(envA),
+                        EMAIL__SMTP__HOST = string.IsNullOrWhiteSpace(envB) ? "<empty>" : Mask(envB),
+                        EMAIL_SMTP_HOST = string.IsNullOrWhiteSpace(envC) ? "<empty>" : Mask(envC),
+                        SMTP_HOST = string.IsNullOrWhiteSpace(envD) ? "<empty>" : Mask(envD),
+                    };
+
+                    HttpContext.RequestServices.GetRequiredService<ILogger<AuthController>>().LogInformation("SMTP pre-check failed - diag: {Diag}", diag);
+
+                    error = $"SMTP Host is not configured. diag: cfg={diag.cfg}, Email__Smtp__Host={diag.Email__Smtp__Host}, EMAIL__SMTP__HOST={diag.EMAIL__SMTP__HOST}, EMAIL_SMTP_HOST={diag.EMAIL_SMTP_HOST}, SMTP_HOST={diag.SMTP_HOST}";
                 }
                 else
                 {
