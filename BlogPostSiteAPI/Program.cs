@@ -465,7 +465,26 @@ namespace BlogPostSiteAPI
                     string? env3 = Environment.GetEnvironmentVariable("EMAIL_SMTP_HOST");
                     string? env4 = Environment.GetEnvironmentVariable("SMTP_HOST");
 
-                    string? detected = cfgHost ?? env1 ?? env2 ?? env3 ?? env4;
+                    // Clean helper: trim and strip surrounding quotes/newlines
+                    string? Clean(string? s)
+                    {
+                        if (string.IsNullOrWhiteSpace(s)) return null;
+                        s = s.Trim();
+                        if ((s.Length >= 2 && ((s.StartsWith('"') && s.EndsWith('"')) || (s.StartsWith('\'') && s.EndsWith('\'')))))
+                        {
+                            s = s.Substring(1, s.Length - 2).Trim();
+                        }
+                        s = s.Replace("\r", "").Replace("\n", "").Trim();
+                        return string.IsNullOrWhiteSpace(s) ? null : s;
+                    }
+
+                    var cleanedCfg = Clean(cfgHost);
+                    var cleanedEnv1 = Clean(env1);
+                    var cleanedEnv2 = Clean(env2);
+                    var cleanedEnv3 = Clean(env3);
+                    var cleanedEnv4 = Clean(env4);
+
+                    string? detected = cleanedCfg ?? cleanedEnv1 ?? cleanedEnv2 ?? cleanedEnv3 ?? cleanedEnv4;
 
                     string? masked = null;
                     if (!string.IsNullOrWhiteSpace(detected))
@@ -476,7 +495,7 @@ namespace BlogPostSiteAPI
 
                     var dict = new Dictionary<string, object?>()
                     {
-                        ["configured"] = !string.IsNullOrWhiteSpace(cfgHost),
+                        ["configured"] = !string.IsNullOrWhiteSpace(cleanedCfg),
                         ["env_Email__Smtp__Host"] = !string.IsNullOrWhiteSpace(env1),
                         ["env_EMAIL__SMTP__HOST"] = !string.IsNullOrWhiteSpace(env2),
                         ["env_EMAIL_SMTP_HOST"] = !string.IsNullOrWhiteSpace(env3),
