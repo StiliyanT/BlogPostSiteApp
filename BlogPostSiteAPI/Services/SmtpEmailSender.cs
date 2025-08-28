@@ -18,15 +18,27 @@ namespace BlogPostSiteAPI.Services
     public async Task SendAsync(string to, string subject, string body, string? from = null)
         {
             // Helper: try multiple config sources and common env var names (Azure App Service uses __ for nested keys)
+            string? Clean(string? s)
+            {
+                if (string.IsNullOrWhiteSpace(s)) return null;
+                s = s.Trim();
+                // strip surrounding quotes
+                if ((s.Length >= 2 && ((s.StartsWith('"') && s.EndsWith('"')) || (s.StartsWith('\'') && s.EndsWith('\'')))))
+                {
+                    s = s.Substring(1, s.Length - 2).Trim();
+                }
+                // remove common control characters
+                s = s.Replace("\r", "").Replace("\n", "").Trim();
+                return string.IsNullOrWhiteSpace(s) ? null : s;
+            }
+
             string? GetSetting(string key)
             {
                 // 1) IConfiguration with colon path
-                var v = _config[$"Email:Smtp:{key}"];
-                if (!string.IsNullOrWhiteSpace(v)) return v;
+                var v = _config[$"Email:Smtp:{key}"]; v = Clean(v); if (!string.IsNullOrWhiteSpace(v)) return v;
 
                 // 2) Environment variable with double-underscore (Email__Smtp__Host)
-                v = Environment.GetEnvironmentVariable($"Email__Smtp__{key}");
-                if (!string.IsNullOrWhiteSpace(v)) return v;
+                v = Environment.GetEnvironmentVariable($"Email__Smtp__{key}"); v = Clean(v); if (!string.IsNullOrWhiteSpace(v)) return v;
 
                 // 3) Common flat SMTP env vars (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_ENABLE_SSL)
                 var alt = key.ToUpper() switch
@@ -41,17 +53,14 @@ namespace BlogPostSiteAPI.Services
                 };
                 if (alt != null)
                 {
-                    v = Environment.GetEnvironmentVariable(alt);
-                    if (!string.IsNullOrWhiteSpace(v)) return v;
+                    v = Environment.GetEnvironmentVariable(alt); v = Clean(v); if (!string.IsNullOrWhiteSpace(v)) return v;
                 }
 
                 // 4) Uppercase Email__Smtp__KEY
-                v = Environment.GetEnvironmentVariable($"EMAIL__SMTP__{key.ToUpper()}");
-                if (!string.IsNullOrWhiteSpace(v)) return v;
+                v = Environment.GetEnvironmentVariable($"EMAIL__SMTP__{key.ToUpper()}"); v = Clean(v); if (!string.IsNullOrWhiteSpace(v)) return v;
 
                 // 5) Single-underscore variants some users set in App Service (EMAIL_SMTP_HOST)
-                v = Environment.GetEnvironmentVariable($"EMAIL_SMTP_{key.ToUpper()}");
-                if (!string.IsNullOrWhiteSpace(v)) return v;
+                v = Environment.GetEnvironmentVariable($"EMAIL_SMTP_{key.ToUpper()}"); v = Clean(v); if (!string.IsNullOrWhiteSpace(v)) return v;
 
                 return null;
             }

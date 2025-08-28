@@ -43,11 +43,24 @@ namespace BlogPostSiteAPI.Controllers
             if (!disableEmail)
             {
                 // Quick pre-check: ensure SMTP host is configured either via config or common env vars
-                    var host = _config["Email:Smtp:Host"]
+                    string? Clean(string? s)
+                    {
+                        if (string.IsNullOrWhiteSpace(s)) return null;
+                        s = s.Trim();
+                        if ((s.Length >= 2 && ((s.StartsWith('"') && s.EndsWith('"')) || (s.StartsWith('\'') && s.EndsWith('\'')))))
+                        {
+                            s = s.Substring(1, s.Length - 2).Trim();
+                        }
+                        s = s.Replace("\r", "").Replace("\n", "").Trim();
+                        return string.IsNullOrWhiteSpace(s) ? null : s;
+                    }
+
+                    var hostRaw = _config["Email:Smtp:Host"]
                                ?? Environment.GetEnvironmentVariable("Email__Smtp__Host")
                                ?? Environment.GetEnvironmentVariable("EMAIL__SMTP__HOST")
                                ?? Environment.GetEnvironmentVariable("EMAIL_SMTP_HOST")
                                ?? Environment.GetEnvironmentVariable("SMTP_HOST");
+                    var host = Clean(hostRaw);
                 if (string.IsNullOrWhiteSpace(host))
                 {
                     error = "SMTP Host is not configured (Email:Smtp:Host or SMTP_HOST environment variable).";
