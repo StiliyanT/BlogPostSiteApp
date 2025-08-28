@@ -49,6 +49,10 @@ namespace BlogPostSiteAPI.Services
                 v = Environment.GetEnvironmentVariable($"EMAIL__SMTP__{key.ToUpper()}");
                 if (!string.IsNullOrWhiteSpace(v)) return v;
 
+                // 5) Single-underscore variants some users set in App Service (EMAIL_SMTP_HOST)
+                v = Environment.GetEnvironmentVariable($"EMAIL_SMTP_{key.ToUpper()}");
+                if (!string.IsNullOrWhiteSpace(v)) return v;
+
                 return null;
             }
 
