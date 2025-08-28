@@ -474,17 +474,17 @@ namespace BlogPostSiteAPI
                         masked = v.Length <= 6 ? "***" : v.Substring(0, 3) + "***" + v.Substring(v.Length - 3);
                     }
 
-                    var result = new
+                    var dict = new Dictionary<string, object?>()
                     {
-                        configured = !string.IsNullOrWhiteSpace(cfgHost),
-                        env_Email__Smtp__Host = !string.IsNullOrWhiteSpace(env1),
-                        env_EMAIL__SMTP__HOST = !string.IsNullOrWhiteSpace(env2),
-                        env_EMAIL_SMTP_HOST = !string.IsNullOrWhiteSpace(env3),
-                        env_SMTP_HOST = !string.IsNullOrWhiteSpace(env4),
-                        detected = masked
+                        ["configured"] = !string.IsNullOrWhiteSpace(cfgHost),
+                        ["env_Email__Smtp__Host"] = !string.IsNullOrWhiteSpace(env1),
+                        ["env_EMAIL__SMTP__HOST"] = !string.IsNullOrWhiteSpace(env2),
+                        ["env_EMAIL_SMTP_HOST"] = !string.IsNullOrWhiteSpace(env3),
+                        ["env_SMTP_HOST"] = !string.IsNullOrWhiteSpace(env4),
+                        ["detected"] = masked
                     };
 
-                    return Results.Json(result);
+                    return Results.Json(dict);
                 }
                 catch (Exception ex)
                 {
