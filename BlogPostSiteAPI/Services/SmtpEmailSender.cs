@@ -67,9 +67,9 @@ namespace BlogPostSiteAPI.Services
             if (string.IsNullOrWhiteSpace(host))
             {
                 var tried = new[] { "Email:Smtp:Host", "Email__Smtp__Host", "SMTP_HOST" };
-                var msg = $"SMTP Host is not configured. Tried: {string.Join(',', tried)}";
-                _logger.LogError(msg);
-                throw new InvalidOperationException(msg);
+                var errMsg = $"SMTP Host is not configured. Tried: {string.Join(',', tried)}";
+                _logger.LogError(errMsg);
+                throw new InvalidOperationException(errMsg);
             }
 
             if (!int.TryParse(portStr, out var port)) port = 587;
