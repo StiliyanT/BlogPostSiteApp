@@ -266,7 +266,9 @@ export default function Blogs() {
                 slug: p.slug,
                 title: p.title,
                 image: normalizeHeroUrl((detail as any).heroUrl),
-                author: (detail as any).author ?? 'Unknown',
+                // detail.author used to be a string; after API changes it's an object { id, name, slug, avatar }
+                // normalize to the author's display name so downstream sorting/filtering (which expects strings) works
+                author: (detail as any).author?.name ?? (typeof (detail as any).author === 'string' ? (detail as any).author : 'Unknown'),
                 views: (detail as any).views ?? 0,
                 likes: (detail as any).likes ?? 0,
                 createdOn: p.createdOn,
