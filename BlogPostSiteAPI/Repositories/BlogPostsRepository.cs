@@ -17,6 +17,17 @@ namespace BlogPostSiteAPI.Repositories
             blogPost.CreatedOn = DateTime.UtcNow;
             blogPost.ModifiedOn = blogPost.CreatedOn;
 
+            // If an AuthorId was provided, try to attach the Author navigation
+            if (blogPost.AuthorId != null && blogPost.Author == null)
+            {
+                var author = await _dbContext.Authors.FirstOrDefaultAsync(a => a.Id == blogPost.AuthorId.Value);
+                if (author != null)
+                {
+                    // attach existing author to ensure relationship is created and navigation is populated
+                    blogPost.Author = author;
+                }
+            }
+
             _dbContext.BlogPosts.Add(blogPost);
             await _dbContext.SaveChangesAsync();
 
@@ -49,7 +60,7 @@ namespace BlogPostSiteAPI.Repositories
             => await _dbContext.BlogPosts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id);
 
         public async Task<BlogPost?> GetBySlugAsync(string slug)
-            => await _dbContext.BlogPosts.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == slug);
+            => await _dbContext.BlogPosts.AsNoTracking().Include(p => p.Author).FirstOrDefaultAsync(p => p.Slug == slug);
 
         public async Task<bool> SlugExistsAsync(string slug)
         => await _dbContext.BlogPosts.AnyAsync(p => p.Slug == slug);

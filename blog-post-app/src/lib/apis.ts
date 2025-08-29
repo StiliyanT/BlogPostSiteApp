@@ -27,6 +27,7 @@ export type BlogPostDetail = {
   heroUrl?: string | null;
   views?: number;
   likes?: number;
+  author?: { id: string; name: string; slug?: string | null; avatar?: string | null } | null;
 };
 
 export async function getPosts(): Promise<BlogPostListItem[]> {

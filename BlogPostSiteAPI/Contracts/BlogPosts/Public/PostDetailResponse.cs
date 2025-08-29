@@ -11,7 +11,15 @@ namespace BlogPostSiteAPI.Contracts.BlogPosts.Public
         DateTime ModifiedOn,
         BlogPostStatus Status,
         string Mdx,
-        string? HeroImageUrl
+        string? HeroImageUrl,
+        AuthorResponse? Author
+    );
+
+    public record AuthorResponse(
+        Guid Id,
+        string Name,
+        string? Slug,
+        string? Avatar
     );
 
     public record BlogPostListItemResponse(

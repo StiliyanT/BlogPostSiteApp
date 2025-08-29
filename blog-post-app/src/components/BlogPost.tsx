@@ -156,7 +156,8 @@ import { useEffect, useState } from 'react';
 
       const hero = (post as any).heroUrl ?? (post as any).heroImageUrl;
       const mdxSource: string = (post as any).mdx ?? (post as any).content ?? '';
-      const author = (post as any).author as string | undefined;
+  const authorObj = (post as any).author as any;
+  const authorName = authorObj?.name ?? (typeof authorObj === 'string' ? authorObj : undefined);
       const views = (post as any).views as number | undefined;
       const likes = (post as any).likes as number | undefined;
 
@@ -167,7 +168,7 @@ import { useEffect, useState } from 'react';
             <h1 className={styles.title}>{post.title}</h1>
             <div className={styles.metaRow}>
               <span>{new Date(post.createdOn).toLocaleDateString()}</span>
-              {author && <span>· By {author}</span>}
+              {authorName && <span>· By {authorName}</span>}
               {(typeof views === 'number' || typeof likes === 'number') && (
                 <span>
                   {(typeof views === 'number' ? `👁️ ${views}` : '')}

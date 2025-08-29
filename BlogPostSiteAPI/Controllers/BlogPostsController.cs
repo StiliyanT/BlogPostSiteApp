@@ -1,6 +1,7 @@
 ﻿using BlogPostSiteAPI.Contracts.BlogPosts.Admin;
 using BlogPostSiteAPI.Contracts.BlogPosts.Public;
 using BlogPostSiteAPI.Infrastructure.Content.Mdx;
+using BlogPostSiteAPI.Contracts.BlogPosts.Public;
 using BlogPostSiteAPI.Infrastructure.Storage;
 using BlogPostSiteAPI.Models;
 using BlogPostSiteAPI.Repositories;
@@ -76,20 +77,26 @@ namespace BlogPostSiteAPI.Controllers
 
 
 
-            return Ok(new
-            {
-                Id = post.Id,
-                Slug = post.Slug,
-                Title = post.Title,
-                Summary = post.Summary,
-                CreatedOn = post.CreatedOn,
-                ModifiedOn = post.ModifiedOn,
-                Status = post.Status,
-                Content = mdx,
-                HeroUrl = heroUrl,
-                Likes = post.Likes,
-                Views = post.Views
-            });
+            var response = new PostDetailResponse(
+                post.Id,
+                post.Slug,
+                post.Title,
+                post.Summary,
+                post.CreatedOn,
+                post.ModifiedOn,
+                post.Status,
+                mdx,
+                heroUrl,
+                post.Author == null ? null : new Contracts.BlogPosts.Public.AuthorResponse(
+                    post.Author.Id,
+                    post.Author.Name,
+                    post.Author.Slug,
+                    post.Author.Avatar
+                )
+            );
+
+            return Ok(response);
+
         }
 
         // POST api/blogposts/upload

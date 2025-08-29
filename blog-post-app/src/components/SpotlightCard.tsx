@@ -57,6 +57,15 @@ const useStyles = makeStyles({
     fontWeight: 500,
     textShadow: "0 1px 4px rgba(0,0,0,0.25)",
   },
+  authorInline: {
+    fontSize: '0.95rem',
+    color: '#9ca3af',
+    marginTop: '-0.25rem',
+    marginBottom: '0.35rem',
+    '@media (prefers-color-scheme: dark)': {
+      color: '#d1d5db',
+    },
+  },
   badge: {
     position: "absolute",
     top: "12px",
@@ -132,7 +141,8 @@ const SpotlightCard: FC<SpotlightCardProps> = ({ name, image, author, views, lik
         )}
       </div>
       <div className={styles.content}>
-        <h3 className={styles.name}>{name}</h3>
+  <h3 className={styles.name}>{name}</h3>
+  {author && <div className={styles.authorInline}>{author}</div>}
         {dateLabel && (
           <div className={styles.date}>Created on {dateLabel}</div>
         )}
