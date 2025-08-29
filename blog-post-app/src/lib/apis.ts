@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { API_BASE } from './urls';
+import { authHeaders } from '../hooks/useAuth';
 
 export type BlogPostListItem = {
   id: string;
@@ -56,6 +57,31 @@ export async function likePost(slug: string): Promise<number | null> {
   } catch {
     return null;
   }
+}
+
+export async function toggleLike(slug: string, token?: string | null): Promise<number | null> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const ah = authHeaders(token) as Record<string, string> | undefined;
+  if (ah) Object.assign(headers, ah);
+  const res = await fetch(`${API_BASE}/api/blogposts/slug/${encodeURIComponent(slug)}/like`, {
+    method: 'POST',
+    headers,
+  });
+  if (res.status === 403 || res.status === 401) throw new Error('auth-required');
+  if (!res.ok) throw new Error('Failed to toggle like');
+  try { const data = await res.json(); return typeof data?.likes === 'number' ? data.likes : null; } catch { return null; }
+}
+
+export async function getLikedPosts(token?: string | null): Promise<BlogPostListItem[]> {
+  const headers2: Record<string, string> = {};
+  const ah2 = authHeaders(token) as Record<string, string> | undefined;
+  if (ah2) Object.assign(headers2, ah2);
+  const res = await fetch(`${API_BASE}/api/blogposts/liked`, { headers: headers2 });
+  if (res.status === 401 || res.status === 403) throw new Error('auth-required');
+  if (!res.ok) throw new Error('Failed to get liked posts');
+  const txt = await res.text();
+  if (!txt) return [];
+  try { return JSON.parse(txt); } catch { throw new Error('Invalid JSON from liked posts'); }
 }
 
 export function trackPostView(slug: string): void {

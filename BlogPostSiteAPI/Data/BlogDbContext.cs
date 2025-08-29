@@ -10,6 +10,7 @@ public class BlogDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
     public DbSet<Author> Authors => Set<Author>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<UserLikedPost> UserLikedPosts => Set<UserLikedPost>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -45,6 +46,13 @@ public class BlogDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<Category>(b =>
         {
             b.Property(c => c.Id).ValueGeneratedOnAdd();
+        });
+
+        modelBuilder.Entity<UserLikedPost>(b =>
+        {
+            b.Property(x => x.Id).ValueGeneratedOnAdd();
+            b.HasIndex(x => new { x.UserId, x.BlogPostId }).IsUnique();
+            b.HasOne(x => x.BlogPost).WithMany().HasForeignKey(x => x.BlogPostId).OnDelete(DeleteBehavior.Cascade);
         });
 
     // MySQL-oriented conventions

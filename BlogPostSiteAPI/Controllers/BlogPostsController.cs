@@ -196,17 +196,49 @@ namespace BlogPostSiteAPI.Controllers
             return CreatedAtAction(nameof(GetBlogPostByIdAsync), new { id = created.Id }, created);
         }
 
-        //POST api/<BlogPostsController>/5/likes
+        // POST api/blogposts/slug/{slug}/like
+        // Toggle like/unlike; requires authenticated user
         [HttpPost("slug/{slug}/like")]
-        public async Task<IActionResult> UpdateBlogPostLikesAsync(string slug)
+        [Authorize]
+        public async Task<IActionResult> ToggleLikeAsync(string slug)
         {
-            var post = await _repo.GetBySlugAsync(slug);
-            if (post == null) return NotFound();
+            var userId = User?.FindFirst("sub")?.Value ?? User?.Identity?.Name;
+            if (string.IsNullOrWhiteSpace(userId)) return Forbid();
 
-            var updatedLikes = await _repo.UpdateBlogPostLikesAsync(post);
+            try
+            {
+                var likes = await _repo.ToggleLikeAsync(slug, userId);
+                return Ok(new { likes });
+            }
+            catch (InvalidOperationException)
+            {
+                return NotFound();
+            }
+        }
 
-            return Ok(new { likes = updatedLikes });
+        // GET api/blogposts/liked
+        // Returns the posts liked by the current user
+        [HttpGet("liked")]
+        [Authorize]
+        public async Task<IActionResult> GetLikedByUserAsync()
+        {
+            var userId = User?.FindFirst("sub")?.Value ?? User?.Identity?.Name;
+            if (string.IsNullOrWhiteSpace(userId)) return Forbid();
 
+            var posts = await _repo.GetLikedPostsByUserAsync(userId);
+            var list = posts.Select(p => new
+            {
+                p.Id,
+                p.Slug,
+                p.Title,
+                p.Summary,
+                p.CreatedOn,
+                p.ModifiedOn,
+                p.Status,
+                p.Likes,
+                p.Views
+            }).ToList();
+            return Ok(list);
         }
 
         // POST api/blogposts/slug/{slug}/view

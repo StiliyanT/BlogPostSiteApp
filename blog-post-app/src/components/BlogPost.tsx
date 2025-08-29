@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
     import { useParams, Link } from 'react-router-dom';
-    import { getPostBySlug, type BlogPostDetail, likePost, trackPostView } from '../lib/apis';
+  import { getPostBySlug, type BlogPostDetail, likePost, trackPostView, toggleLike, getLikedPosts } from '../lib/apis';
     import MdxRenderer from '../components/MdxRenderer';
     import { toAbsolute } from '../lib/urls';
     import { makeStyles, Button } from '@fluentui/react-components';
+  import { useAuth } from '../hooks/useAuth';
 
     const useStyles = makeStyles({
       // page background wrapper (keeps previous gradient look)
@@ -99,6 +100,8 @@ import { useEffect, useState } from 'react';
       const [post, setPost] = useState<BlogPostDetail | null>(null);
       const [error, setError] = useState<string | null>(null);
       const [likePending, setLikePending] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const { token } = useAuth() as any;
       const styles = useStyles();
 
       useEffect(() => {
@@ -108,6 +111,22 @@ import { useEffect, useState } from 'react';
           .then(setPost)
           .catch((e) => setError(String(e?.message || e)));
       }, [slug]);
+
+      // If user is authenticated, check if they liked this post
+      useEffect(() => {
+        let cancelled = false;
+        if (!token || !slug) { setIsLiked(false); return; }
+        (async () => {
+          try {
+            const liked = await getLikedPosts(token);
+            if (cancelled) return;
+            setIsLiked(liked.some(p => p.slug === slug));
+          } catch {
+            // ignore auth errors
+          }
+        })();
+        return () => { cancelled = true; };
+      }, [token, slug]);
 
       // Track a view once per slug per window (6h) to avoid spamming the server
       useEffect(() => {
@@ -127,7 +146,7 @@ import { useEffect, useState } from 'react';
           <div className={styles.root}>
             <div className={styles.container}>
               <p>Post not found.</p>
-              <Link to="/blog" className={styles.backLink}>← Back to blog</Link>
+              <Link to="/blogs" className={styles.backLink}>← Back to blog</Link>
             </div>
           </div>
         );
@@ -144,7 +163,7 @@ import { useEffect, useState } from 'react';
       return (
         <div className={styles.root}>
           <article className={styles.container}>
-            <Link to="/blog" className={styles.backLink}>← All posts</Link>
+            <Link to="/blogs" className={styles.backLink}>← All posts</Link>
             <h1 className={styles.title}>{post.title}</h1>
             <div className={styles.metaRow}>
               <span>{new Date(post.createdOn).toLocaleDateString()}</span>
@@ -167,24 +186,27 @@ import { useEffect, useState } from 'react';
             <div className={styles.likeRow}>
               <Button appearance="primary" disabled={likePending} onClick={async () => {
                 if (!post) return;
+                if (!token) {
+                  // Redirect to login page
+                  window.location.href = '/login';
+                  return;
+                }
                 setLikePending(true);
-                // optimistic update
-                setPost({ ...post, likes: (post.likes ?? 0) + 1 });
                 try {
-                  const newLikes = await likePost(slug);
+                  const newLikes = await toggleLike(slug, token);
                   if (typeof newLikes === 'number') {
                     setPost((curr) => (curr ? { ...curr, likes: newLikes } : curr));
-                  } else {
-                    const refreshed = await getPostBySlug(slug);
-                    setPost(refreshed);
+                    setIsLiked(prev => !prev);
                   }
-                } catch (e) {
-                  setPost((curr) => (curr ? { ...curr, likes: Math.max(0, (curr.likes ?? 1) - 1) } : curr));
+                } catch (e: any) {
+                  if (e?.message === 'auth-required') {
+                    window.location.href = '/login';
+                  }
                 } finally {
                   setLikePending(false);
                 }
               }}>
-                ❤️ Like
+                {isLiked ? '✓ Liked' : '❤️ Like'}
               </Button>
               <span className={styles.likeCount}>{(post?.likes ?? 0).toString()}</span>
             </div>

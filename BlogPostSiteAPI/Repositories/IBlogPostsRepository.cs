@@ -17,5 +17,10 @@ namespace BlogPostSiteAPI.Repositories
         Task<bool> SlugExistsAsync(string slug);
 
         Task<int> UpdateBlogPostLikesAsync(BlogPost blogPost);
+    // Toggle like/unlike by user; returns new likes count
+    Task<int> ToggleLikeAsync(string slug, string userId);
+
+    // Get blog posts liked by a user (latest first)
+    Task<IEnumerable<BlogPost>> GetLikedPostsByUserAsync(string userId);
     }
 }

@@ -61,5 +61,40 @@ namespace BlogPostSiteAPI.Repositories
             await _dbContext.SaveChangesAsync();
             return blogPost.Likes;
         }
+
+        public async Task<int> ToggleLikeAsync(string slug, string userId)
+        {
+            var post = await _dbContext.BlogPosts.FirstOrDefaultAsync(p => p.Slug == slug);
+            if (post == null) throw new InvalidOperationException("Post not found");
+
+            var existing = await _dbContext.UserLikedPosts.FirstOrDefaultAsync(x => x.UserId == userId && x.BlogPostId == post.Id);
+            if (existing != null)
+            {
+                // remove like
+                _dbContext.UserLikedPosts.Remove(existing);
+                post.Likes = Math.Max(0, post.Likes - 1);
+            }
+            else
+            {
+                // add like
+                var like = new Models.UserLikedPost { UserId = userId, BlogPostId = post.Id, LikedOn = DateTime.UtcNow };
+                await _dbContext.UserLikedPosts.AddAsync(like);
+                post.Likes += 1;
+            }
+            _dbContext.BlogPosts.Update(post);
+            await _dbContext.SaveChangesAsync();
+            return post.Likes;
+        }
+
+        public async Task<IEnumerable<BlogPost>> GetLikedPostsByUserAsync(string userId)
+        {
+            // join liked posts to blog posts and return the post entities
+            var q = from lp in _dbContext.UserLikedPosts
+                    join p in _dbContext.BlogPosts on lp.BlogPostId equals p.Id
+                    where lp.UserId == userId
+                    orderby lp.LikedOn descending
+                    select p;
+            return await q.AsNoTracking().ToListAsync();
+        }
     }
 }

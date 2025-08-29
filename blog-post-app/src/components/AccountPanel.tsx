@@ -1,8 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { Button, makeStyles, shorthands, tokens } from "@fluentui/react-components";
 import { useAuth } from "../hooks/useAuth";
+import { useState, useEffect } from 'react';
+import SpotlightCard from './SpotlightCard';
+import { getLikedPosts } from '../lib/apis';
 
 export type AccountPanelProps = {
   open: boolean;
@@ -129,6 +132,9 @@ const useStyles = makeStyles({
 export default function AccountPanel({ open, onClose }: AccountPanelProps) {
   const styles = useStyles();
   const { token, roles, logout, email } = useAuth() as any;
+  const [likedCount, setLikedCount] = useState<number | null>(null);
+  const [showLiked, setShowLiked] = useState(false);
+  const [likedPosts, setLikedPosts] = useState<any[]>([]);
   const isAdmin = Array.isArray(roles) && roles.includes('Admin');
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
@@ -215,6 +221,25 @@ export default function AccountPanel({ open, onClose }: AccountPanelProps) {
               Logout
             </Button>
           )}
+          {token && (
+            <Button className={styles.outlineBtn} appearance="secondary" size="medium" onClick={async () => {
+              // toggle liked posts view
+              if (!showLiked) {
+                try {
+                  const posts = await getLikedPosts(token);
+                  setLikedPosts(posts);
+                  setLikedCount(posts.length);
+                  setShowLiked(true);
+                } catch {
+                  setLikedCount(0);
+                }
+              } else {
+                setShowLiked(false);
+              }
+            }}>
+              Liked posts{typeof likedCount === 'number' ? ` (${likedCount})` : ''}
+            </Button>
+          )}
           {token && isAdmin && (
             <Link to="/admin" className={styles.linkWrap} onClick={onClose}>
               <Button className={styles.outlineBtn} appearance="secondary" size="medium">
@@ -223,6 +248,20 @@ export default function AccountPanel({ open, onClose }: AccountPanelProps) {
             </Link>
           )}
         </div>
+        {/* Liked posts list (when toggled) */}
+        {showLiked && (
+          <div style={{ marginTop: '12px' }}>
+            {likedPosts.length === 0 ? (
+              <div style={{ color: 'rgba(0,0,0,0.6)' }}>No liked posts found.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {likedPosts.map(p => (
+                  <SpotlightCard key={p.slug} name={p.title} image={p.heroUrl ?? '/placeholder.jpg'} author={p.author ?? 'Unknown'} views={p.views ?? 0} likes={p.likes ?? 0} createdOn={p.createdOn} to={`/blog/${p.slug}`} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </aside>
     </>
   );
