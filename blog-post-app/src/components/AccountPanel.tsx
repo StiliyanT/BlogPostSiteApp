@@ -227,8 +227,10 @@ export default function AccountPanel({ open, onClose }: AccountPanelProps) {
               if (!showLiked) {
                 try {
                   const posts = await getLikedPosts(token);
-                  setLikedPosts(posts);
-                  setLikedCount(posts.length);
+                  // normalize author field to a display string (API may return object)
+                  const normalized = posts.map(p => ({ ...p, author: (p as any).author?.name ?? (typeof (p as any).author === 'string' ? (p as any).author : 'Unknown') }));
+                  setLikedPosts(normalized as any[]);
+                  setLikedCount(normalized.length);
                   setShowLiked(true);
                 } catch {
                   setLikedCount(0);
