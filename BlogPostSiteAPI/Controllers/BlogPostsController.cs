@@ -120,6 +120,11 @@ namespace BlogPostSiteAPI.Controllers
                     post.Author.Slug,
                     post.Author.Avatar
                 )
+                , post.Category == null ? null : new Contracts.BlogPosts.Public.CategoryResponse(
+                    post.Category.Id,
+                    post.Category.Name,
+                    null
+                )
             );
 
             return Ok(response);
@@ -131,7 +136,7 @@ namespace BlogPostSiteAPI.Controllers
     [Authorize(Policy = "Admin")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(104_857_600)] // 100 MB cap (tune as needed)
-        public async Task<IActionResult> UploadZipAsync(IFormFile file, [FromForm] string? slug, CancellationToken ct)
+    public async Task<IActionResult> UploadZipAsync(IFormFile file, [FromForm] string? slug, [FromForm] Guid? authorId, [FromForm] Guid? categoryId, CancellationToken ct)
         {
             if (file == null || file.Length == 0) return BadRequest("Upload a non-empty zip file.");
             if (!file.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) return BadRequest("Only .zip is supported.");
@@ -173,6 +178,10 @@ namespace BlogPostSiteAPI.Controllers
                 PublishedOn = null,
                 HeroImageRelativePath = heroRel
             };
+
+            // Optionally set author and category
+            if (authorId.HasValue) post.AuthorId = authorId.Value;
+            if (categoryId.HasValue) post.CategoryId = categoryId.Value;
 
             var created = await _repo.CreateBlogPostAsync(post);
 

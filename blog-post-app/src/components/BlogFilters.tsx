@@ -4,6 +4,7 @@ import { makeStyles, Input, Button, Select, Option } from '@fluentui/react-compo
 export type Filters = {
   query: string;
   author?: string | null | undefined;
+  category?: string | null | undefined;
   sort?: 'newest' | 'views' | 'likes' | 'alpha';
 };
 
@@ -55,6 +56,7 @@ const useStyles = makeStyles({
 
 export default function BlogFilters(props: {
   authors?: string[];
+  categories?: string[];
   value?: Filters;
   onChange?: (v: Filters) => void;
 }) {
@@ -63,25 +65,33 @@ export default function BlogFilters(props: {
 
   const [query, setQuery] = useState(value?.query ?? '');
   const [author, setAuthor] = useState<string | null>(value?.author ?? null);
+  const [category, setCategory] = useState<string | null>(value?.category ?? null);
   const [sort, setSort] = useState<Filters['sort']>(value?.sort ?? 'newest');
   const [expanded, setExpanded] = useState<boolean>(false);
 
   useEffect(() => {
     setQuery(value?.query ?? '');
     setAuthor(value?.author ?? null);
+  setCategory(value?.category ?? null);
     setSort(value?.sort ?? 'newest');
   }, [value]);
 
   useEffect(() => {
-    onChange?.({ query: query.trim(), author: author || undefined, sort });
+    onChange?.({ query: query.trim(), author: author || undefined, category: category || undefined, sort });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, author, sort]);
+  }, [query, author, category, sort]);
 
   const authorOptions = useMemo(() => {
     const unique = Array.from(new Set(authors.filter(Boolean)));
     unique.sort((a, b) => a.localeCompare(b));
     return unique;
   }, [authors]);
+
+  const categoryOptions = useMemo(() => {
+    const unique = Array.from(new Set((props.categories ?? []).filter(Boolean)));
+    unique.sort((a, b) => a.localeCompare(b));
+    return unique;
+  }, [props.categories]);
 
   return (
     <div className={styles.root} aria-label="Blog filters">
@@ -111,6 +121,19 @@ export default function BlogFilters(props: {
               <Option value="">All authors</Option>
               {authorOptions.map((a) => (
                 <Option key={a} value={a}>{a}</Option>
+              ))}
+            </Select>
+          </div>
+
+          <div style={{ minWidth: 160 }}>
+            <Select
+              value={category ?? ''}
+              onChange={(e) => setCategory((e.target as HTMLSelectElement).value || null)}
+              appearance="outline"
+            >
+              <Option value="">All categories</Option>
+              {categoryOptions.map((c) => (
+                <Option key={c} value={c}>{c}</Option>
               ))}
             </Select>
           </div>

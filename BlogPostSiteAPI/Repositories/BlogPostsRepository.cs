@@ -60,7 +60,10 @@ namespace BlogPostSiteAPI.Repositories
             => await _dbContext.BlogPosts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id);
 
         public async Task<BlogPost?> GetBySlugAsync(string slug)
-            => await _dbContext.BlogPosts.AsNoTracking().Include(p => p.Author).FirstOrDefaultAsync(p => p.Slug == slug);
+            => await _dbContext.BlogPosts.AsNoTracking()
+                .Include(p => p.Author)
+                .Include(p => p.Category)
+                .FirstOrDefaultAsync(p => p.Slug == slug);
 
         public async Task<bool> SlugExistsAsync(string slug)
         => await _dbContext.BlogPosts.AnyAsync(p => p.Slug == slug);

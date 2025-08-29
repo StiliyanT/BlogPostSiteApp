@@ -200,6 +200,7 @@ type SpotlightItem = {
   title: string;
   image?: string;
   author?: string;
+  category?: string;
   views?: number;
   likes?: number;
   createdOn?: string;
@@ -257,7 +258,7 @@ export default function Blogs() {
         setError(null);
         const list = await getPosts();
         console.log('Loaded posts list', list);
-        const detailed = await Promise.all(
+  const detailed = await Promise.all(
           list.map(async (p: BlogPostListItem): Promise<SpotlightItem> => {
             try {
               const detail = await getPostBySlug(p.slug);
@@ -269,6 +270,7 @@ export default function Blogs() {
                 // detail.author used to be a string; after API changes it's an object { id, name, slug, avatar }
                 // normalize to the author's display name so downstream sorting/filtering (which expects strings) works
                 author: (detail as any).author?.name ?? (typeof (detail as any).author === 'string' ? (detail as any).author : 'Unknown'),
+                category: (detail as any).category?.name ?? undefined,
                 views: (detail as any).views ?? 0,
                 likes: (detail as any).likes ?? 0,
                 createdOn: p.createdOn,
@@ -279,7 +281,7 @@ export default function Blogs() {
             }
           })
         );
-        if (!cancelled) setItems(detailed);
+  if (!cancelled) setItems(detailed);
       } catch (e: any) {
         console.error('Failed to load posts', e);
         if (!cancelled) setError(e?.message || 'Failed to load posts');
@@ -299,6 +301,7 @@ export default function Blogs() {
 
   // derive author list for filter dropdown
   const authors = Array.from(new Set(items.map(i => i.author).filter(Boolean) as string[]));
+  const categoryList = Array.from(new Set(items.map(i => i.category).filter(Boolean) as string[]));
 
   // apply filters & sorting
   const filtered = items.filter(it => {
@@ -309,6 +312,9 @@ export default function Blogs() {
     }
     if (filters.author != null && filters.author !== '') {
       if ((it.author || '').toLowerCase() !== (filters.author || '').toLowerCase()) return false;
+    }
+    if (filters.category != null && filters.category !== '') {
+      if ((it.category || '').toLowerCase() !== (filters.category || '').toLowerCase()) return false;
     }
     return true;
   }).sort((a, b) => {
@@ -333,7 +339,7 @@ export default function Blogs() {
 
         {/* Middle content area */}
         <div>
-          <BlogFilters authors={authors} value={filters} onChange={(v: BlogFiltersType) => { setFilters(v); setCurrentPage(1); }} />
+          <BlogFilters authors={authors} categories={categoryList} value={filters} onChange={(v: BlogFiltersType) => { setFilters(v); setCurrentPage(1); }} />
           {error && !loading && <div className={styles.muted}>Error: {error}</div>}
 
           {!loading && !error && pageItems.length === 0 && (

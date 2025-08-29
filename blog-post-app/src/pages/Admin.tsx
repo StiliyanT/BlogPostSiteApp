@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect, useMemo, useState } from 'react';
-import { type BlogPostListItem, deletePost, getPosts, publishPost, uploadPostZip, getAuthors } from '../lib/apis';
+import { type BlogPostListItem, deletePost, getPosts, publishPost, uploadPostZip, getAuthors, getCategories, createCategory } from '../lib/apis';
 import { Toaster, useToastController, Toast, ToastTitle, makeStyles, shorthands, tokens, Button, Input, Field, Dropdown, Option } from '@fluentui/react-components';
 
 const useStyles = makeStyles({
@@ -138,6 +138,9 @@ export default function Admin() {
   const [slug, setSlug] = useState('');
   const [authors, setAuthors] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
   // Filters & paging
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<'all' | 'draft' | 'published'>('all');
@@ -152,6 +155,11 @@ export default function Admin() {
     getAuthors().then((list) => {
       setAuthors(list as Array<{ id: string; name: string }>);
       if (list && list.length > 0) setSelectedAuthorId(list[0].id);
+    }).catch(() => {});
+    // load categories
+    getCategories().then(list => {
+      setCategories(list as Array<{ id: string; name: string }>);
+      if (list && list.length > 0) setSelectedCategoryId(list[0].id);
     }).catch(() => {});
   }, []);
 
@@ -214,13 +222,28 @@ export default function Admin() {
     setBusy(true);
     setError(null);
     try {
-      await uploadPostZip({ file, slug: slug || undefined, authorId: selectedAuthorId ?? undefined, token });
+  await uploadPostZip({ file, slug: slug || undefined, authorId: selectedAuthorId ?? undefined, categoryId: selectedCategoryId ?? undefined, token });
       setFile(null); setSlug('');
       await refresh();
   dispatchToast(<Toast><ToastTitle>Upload complete</ToastTitle></Toast>, { intent: 'success' });
     } catch (e) {
       setError(String((e as any)?.message || e));
   dispatchToast(<Toast><ToastTitle>Upload failed</ToastTitle></Toast>, { intent: 'error' });
+    } finally { setBusy(false); }
+  };
+
+  const onCreateCategory = async () => {
+    if (!token || !newCategoryName) return;
+    setBusy(true);
+    try {
+      const created = await createCategory(newCategoryName, token);
+      setCategories(prev => [created, ...(prev ?? [])]);
+      setSelectedCategoryId(created.id);
+      setNewCategoryName('');
+      dispatchToast(<Toast><ToastTitle>Category created</ToastTitle></Toast>, { intent: 'success' });
+    } catch (e) {
+      setError(String((e as any)?.message || e));
+      dispatchToast(<Toast><ToastTitle>Create category failed</ToastTitle></Toast>, { intent: 'error' });
     } finally { setBusy(false); }
   };
 
@@ -250,6 +273,22 @@ export default function Admin() {
             >
               {authors.map(a => <Option key={a.id} value={a.id}>{a.name}</Option>)}
             </Dropdown>
+          </Field>
+          <Field label="Category">
+            <Dropdown
+              selectedOptions={selectedCategoryId ? [selectedCategoryId] : []}
+              onOptionSelect={(_, data) => setSelectedCategoryId(String(data.optionValue ?? null))}
+              className={styles.dropdown}
+              listbox={{ className: styles.dropdownListbox }}
+            >
+              {categories.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
+            </Dropdown>
+          </Field>
+          <Field label="Create category">
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Input value={newCategoryName} onChange={e => setNewCategoryName((e.target as HTMLInputElement).value)} className={styles.input} placeholder="Category name" />
+              <Button className={styles.ctaBtn} onClick={onCreateCategory} disabled={!newCategoryName || busy}>Create</Button>
+            </div>
           </Field>
           <Field label="Optional slug">
             <Input value={slug} onChange={e => setSlug((e.target as HTMLInputElement).value)} placeholder="my-awesome-post" className={styles.input} />

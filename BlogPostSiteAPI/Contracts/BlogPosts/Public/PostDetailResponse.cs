@@ -12,7 +12,8 @@ namespace BlogPostSiteAPI.Contracts.BlogPosts.Public
         BlogPostStatus Status,
         string Mdx,
         string? HeroImageUrl,
-        AuthorResponse? Author
+    AuthorResponse? Author,
+    CategoryResponse? Category
     );
 
     public record AuthorResponse(
@@ -20,6 +21,12 @@ namespace BlogPostSiteAPI.Contracts.BlogPosts.Public
         string Name,
         string? Slug,
         string? Avatar
+    );
+
+    public record CategoryResponse(
+        Guid Id,
+        string Name,
+        string? Slug
     );
 
     public record BlogPostListItemResponse(

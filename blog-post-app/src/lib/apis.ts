@@ -28,6 +28,7 @@ export type BlogPostDetail = {
   views?: number;
   likes?: number;
   author?: { id: string; name: string; slug?: string | null; avatar?: string | null } | null;
+  category?: { id: string; name: string; slug?: string | null } | null;
 };
 
 export async function getPosts(): Promise<BlogPostListItem[]> {
@@ -149,12 +150,13 @@ export async function deletePost(id: string, token: string): Promise<void> {
   if (!res.ok) throw new Error('Failed to delete');
 }
 
-export async function uploadPostZip(params: { file: File; slug?: string; authorId?: string; token: string }): Promise<any> {
-  const { file, slug, token, authorId } = params;
+export async function uploadPostZip(params: { file: File; slug?: string; authorId?: string; categoryId?: string; token: string }): Promise<any> {
+  const { file, slug, token, authorId, categoryId } = params as any;
   const fd = new FormData();
   fd.append('file', file);
   if (slug) fd.append('slug', slug);
   if (authorId) fd.append('authorId', authorId);
+  if (categoryId) fd.append('categoryId', categoryId);
   const res = await fetch(`${API_BASE}/api/admin/blogposts/upload`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
@@ -201,4 +203,22 @@ export async function sendContactMessage(input: ContactMessageInput): Promise<vo
     }
     throw new Error(msg);
   }
+}
+
+export async function getCategories(): Promise<{ id: string; name: string; slug?: string }[]> {
+  const res = await fetch(`${API_BASE}/api/categories`);
+  if (!res.ok) throw new Error('Failed to load categories');
+  const txt = await res.text();
+  if (!txt) return [];
+  try { return JSON.parse(txt); } catch { throw new Error('Invalid JSON from categories endpoint'); }
+}
+
+export async function createCategory(name: string, token: string): Promise<{ id: string; name: string; slug?: string }>{
+  const res = await fetch(`${API_BASE}/api/categories`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error('Failed to create category');
+  try { return await res.json(); } catch { throw new Error('Invalid JSON from create category'); }
 }
