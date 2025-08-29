@@ -1,6 +1,8 @@
 import { makeStyles, Spinner } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
 import SpotlightCard from "../components/SpotlightCard";
+import BlogFilters from "../components/BlogFilters";
+import type { Filters as BlogFiltersType } from "../components/BlogFilters";
 import { getPosts, getPostBySlug, trackClickView } from "../lib/apis";
 import type { BlogPostListItem } from "../lib/apis";
 import { toAbsolute } from "../lib/urls";
@@ -245,6 +247,7 @@ export default function Blogs() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [filters, setFilters] = useState<BlogFiltersType>({ query: '', author: undefined, sort: 'newest' });
 
   useEffect(() => {
     let cancelled = false;
@@ -292,9 +295,33 @@ export default function Blogs() {
     setCurrentPage(1);
   }, [items.length]);
 
-  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  // derive author list for filter dropdown
+  const authors = Array.from(new Set(items.map(i => i.author).filter(Boolean) as string[]));
+
+  // apply filters & sorting
+  const filtered = items.filter(it => {
+    if (filters.query) {
+      const q = filters.query.toLowerCase();
+      const hay = `${it.title || ''} ${it.author || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (filters.author != null && filters.author !== '') {
+      if ((it.author || '').toLowerCase() !== (filters.author || '').toLowerCase()) return false;
+    }
+    return true;
+  }).sort((a, b) => {
+    switch (filters.sort) {
+      case 'views': return (b.views || 0) - (a.views || 0);
+      case 'likes': return (b.likes || 0) - (a.likes || 0);
+      case 'alpha': return (a.title || '').localeCompare(b.title || '');
+      default: // newest
+        return new Date(b.createdOn || '').getTime() - new Date(a.createdOn || '').getTime();
+    }
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const start = (currentPage - 1) * PAGE_SIZE;
-  const pageItems = items.slice(start, start + PAGE_SIZE);
+  const pageItems = filtered.slice(start, start + PAGE_SIZE);
   const numberedItems = buildPageItems(totalPages, currentPage);
 
   return (
@@ -304,6 +331,7 @@ export default function Blogs() {
 
         {/* Middle content area */}
         <div>
+          <BlogFilters authors={authors} value={filters} onChange={(v: BlogFiltersType) => { setFilters(v); setCurrentPage(1); }} />
           {error && !loading && <div className={styles.muted}>Error: {error}</div>}
 
           {!loading && !error && pageItems.length === 0 && (
