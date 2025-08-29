@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
     import { useParams, Link } from 'react-router-dom';
-  import { getPostBySlug, type BlogPostDetail, likePost, trackPostView, toggleLike, getLikedPosts } from '../lib/apis';
+  import { getPostBySlug, type BlogPostDetail, trackPostView, toggleLike, getLikedPosts } from '../lib/apis';
     import MdxRenderer from '../components/MdxRenderer';
     import { toAbsolute } from '../lib/urls';
     import { makeStyles, Button } from '@fluentui/react-components';
