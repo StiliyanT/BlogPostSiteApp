@@ -148,11 +148,12 @@ export async function deletePost(id: string, token: string): Promise<void> {
   if (!res.ok) throw new Error('Failed to delete');
 }
 
-export async function uploadPostZip(params: { file: File; slug?: string; token: string }): Promise<any> {
-  const { file, slug, token } = params;
+export async function uploadPostZip(params: { file: File; slug?: string; authorId?: string; token: string }): Promise<any> {
+  const { file, slug, token, authorId } = params;
   const fd = new FormData();
   fd.append('file', file);
   if (slug) fd.append('slug', slug);
+  if (authorId) fd.append('authorId', authorId);
   const res = await fetch(`${API_BASE}/api/admin/blogposts/upload`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
@@ -162,6 +163,14 @@ export async function uploadPostZip(params: { file: File; slug?: string; token: 
   const body = await res.text();
   if (!body) return {};
   try { return JSON.parse(body); } catch { return {}; }
+}
+
+export async function getAuthors(): Promise<{ id: string; name: string; slug?: string; avatar?: string }[]> {
+  const res = await fetch(`${API_BASE}/api/authors`);
+  if (!res.ok) throw new Error('Failed to load authors');
+  const txt = await res.text();
+  if (!txt) return [];
+  try { return JSON.parse(txt); } catch { throw new Error('Invalid JSON from authors endpoint'); }
 }
 
 // Contact form API

@@ -347,6 +347,35 @@ namespace BlogPostSiteAPI
                         app.Logger.LogError(ex, "Database migration failed during startup");
                     }
                 }
+                // Optional default author seeding
+                if (string.Equals(Environment.GetEnvironmentVariable("SEED_DEFAULT_AUTHOR"), "true", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        using var seedScope2 = app.Services.CreateScope();
+                        var ctx2 = seedScope2.ServiceProvider.GetRequiredService<BlogDbContext>();
+                        var authorsRepo = seedScope2.ServiceProvider.GetRequiredService<IAuthorsRepository>();
+                        var existing = ctx2.Authors.Any();
+                        if (!existing)
+                        {
+                            var defaultAuthor = new Author
+                            {
+                                Id = Guid.NewGuid(),
+                                Name = Environment.GetEnvironmentVariable("DEFAULT_AUTHOR_NAME") ?? "Admin",
+                                Slug = (Environment.GetEnvironmentVariable("DEFAULT_AUTHOR_SLUG") ?? "admin").ToLowerInvariant(),
+                                Bio = Environment.GetEnvironmentVariable("DEFAULT_AUTHOR_BIO") ?? "Site administrator",
+                                Avatar = Environment.GetEnvironmentVariable("DEFAULT_AUTHOR_AVATAR") ?? string.Empty,
+                                Email = Environment.GetEnvironmentVariable("DEFAULT_AUTHOR_EMAIL") ?? string.Empty
+                            };
+                            authorsRepo.CreateAuthorAsync(defaultAuthor).GetAwaiter().GetResult();
+                            app.Logger.LogInformation("Seeded default author {Name}", defaultAuthor.Name);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        app.Logger.LogError(ex, "Default author seeding failed");
+                    }
+                }
             }
 
             // Reordered middleware: compression & forwarded headers early, then routing -> CORS -> auth

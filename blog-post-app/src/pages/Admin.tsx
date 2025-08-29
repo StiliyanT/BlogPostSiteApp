@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect, useMemo, useState } from 'react';
-import { type BlogPostListItem, deletePost, getPosts, publishPost, uploadPostZip } from '../lib/apis';
+import { type BlogPostListItem, deletePost, getPosts, publishPost, uploadPostZip, getAuthors } from '../lib/apis';
 import { Toaster, useToastController, Toast, ToastTitle, makeStyles, shorthands, tokens, Button, Input, Field, Dropdown, Option } from '@fluentui/react-components';
 
 const useStyles = makeStyles({
@@ -136,6 +136,8 @@ export default function Admin() {
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [slug, setSlug] = useState('');
+  const [authors, setAuthors] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
   // Filters & paging
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<'all' | 'draft' | 'published'>('all');
@@ -146,6 +148,11 @@ export default function Admin() {
 
   useEffect(() => {
     getPosts().then(setItems).catch(e => setError(String(e?.message || e)));
+    // load authors for upload
+    getAuthors().then((list) => {
+      setAuthors(list as Array<{ id: string; name: string }>);
+      if (list && list.length > 0) setSelectedAuthorId(list[0].id);
+    }).catch(() => {});
   }, []);
 
   const refresh = async () => {
@@ -207,7 +214,7 @@ export default function Admin() {
     setBusy(true);
     setError(null);
     try {
-      await uploadPostZip({ file, slug: slug || undefined, token });
+      await uploadPostZip({ file, slug: slug || undefined, authorId: selectedAuthorId ?? undefined, token });
       setFile(null); setSlug('');
       await refresh();
   dispatchToast(<Toast><ToastTitle>Upload complete</ToastTitle></Toast>, { intent: 'success' });
@@ -234,6 +241,16 @@ export default function Admin() {
         <h3>Upload new post (.zip)</h3>
         <form onSubmit={onUpload} className={styles.form}>
           <input type="file" accept=".zip" onChange={e => setFile(e.target.files?.[0] ?? null)} />
+          <Field label="Author">
+            <Dropdown
+              selectedOptions={selectedAuthorId ? [selectedAuthorId] : []}
+              onOptionSelect={(_, data) => setSelectedAuthorId(String(data.optionValue ?? null))}
+              className={styles.dropdown}
+              listbox={{ className: styles.dropdownListbox }}
+            >
+              {authors.map(a => <Option key={a.id} value={a.id}>{a.name}</Option>)}
+            </Dropdown>
+          </Field>
           <Field label="Optional slug">
             <Input value={slug} onChange={e => setSlug((e.target as HTMLInputElement).value)} placeholder="my-awesome-post" className={styles.input} />
           </Field>

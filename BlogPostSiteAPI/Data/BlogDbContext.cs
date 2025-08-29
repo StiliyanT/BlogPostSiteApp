@@ -41,6 +41,12 @@ public class BlogDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<Author>(b =>
         {
             b.Property(a => a.Id).ValueGeneratedOnAdd();
+            b.HasIndex(a => a.Slug).IsUnique();
+
+            b.HasOne<Microsoft.AspNetCore.Identity.IdentityUser>()
+             .WithMany()
+             .HasForeignKey("ApplicationUserId")
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Category>(b =>

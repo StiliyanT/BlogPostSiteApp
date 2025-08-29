@@ -15,11 +15,13 @@ public class AdminBlogPostsController : ControllerBase
 {
     private readonly IBlogPostsRepository _repo;
     private readonly IBlogContentStorage _storage;
+    private readonly IAuthorsRepository _authorsRepo;
 
-    public AdminBlogPostsController(IBlogPostsRepository repo, IBlogContentStorage storage)
+    public AdminBlogPostsController(IBlogPostsRepository repo, IBlogContentStorage storage, IAuthorsRepository authorsRepo)
     {
         _repo = repo;
         _storage = storage;
+        _authorsRepo = authorsRepo;
     }
 
     [HttpPost("upload")]
@@ -28,6 +30,7 @@ public class AdminBlogPostsController : ControllerBase
     public async Task<IActionResult> UploadZipAsync(
         IFormFile file,
         [FromForm] string? slug,
+        [FromForm] Guid? authorId,
         CancellationToken ct)
     {
         if (file == null || file.Length == 0)
@@ -93,6 +96,17 @@ public class AdminBlogPostsController : ControllerBase
             PublishedOn = null,
             HeroImageRelativePath = heroRel
         };
+
+        if (authorId != null && authorId != Guid.Empty)
+        {
+            // validate author exists
+            var found = await _authorsRepo.GetAuthorByIdAsync(authorId.Value);
+            if (found == null)
+            {
+                return BadRequest("author not found");
+            }
+            post.AuthorId = authorId;
+        }
 
         var created = await _repo.CreateBlogPostAsync(post);
 

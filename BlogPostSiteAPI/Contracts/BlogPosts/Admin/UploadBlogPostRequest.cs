@@ -4,6 +4,7 @@ namespace BlogPostSiteAPI.Contracts.BlogPosts.Admin
 {
     public record UploadBlogPostRequest(
         [Required] IFormFile File,
-        string? Slug
+    string? Slug,
+    Guid? AuthorId
     );
 }
