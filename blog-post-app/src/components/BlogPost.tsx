@@ -6,60 +6,77 @@ import { useEffect, useState } from 'react';
     import { makeStyles, Button } from '@fluentui/react-components';
 
     const useStyles = makeStyles({
+      // page background wrapper (keeps previous gradient look)
       root: {
-        width: "100vw",
-        height: "100vh",
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "linear-gradient(135deg, #f3f4f6 0%, #e0e7ef 100%)",
+        minHeight: '100vh',
+        padding: '2rem 1rem',
+        background: 'linear-gradient(135deg, #f3f4f6 0%, #e0e7ef 100%)',
         '@media (prefers-color-scheme: dark)': {
-          background: "linear-gradient(135deg, #171717 0%, #262626 100%)",
+          background: 'linear-gradient(135deg, #0b0b0b 0%, #171717 100%)',
         },
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'flex-start',
       },
+      // central card container
       container: {
-        width: "100vw",
-        margin: '0 auto',
-        padding: '24px',
-        justifyContent: "center",
-        //display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
+        width: '100%',
+        maxWidth: '900px',
+        background: '#ffffff',
+        borderRadius: '12px',
+        boxShadow: '0 8px 30px rgba(16,24,40,0.08)',
+        padding: '28px',
+        margin: '24px 0',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        '@media (prefers-color-scheme: dark)': {
+          background: '#161616',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+        },
       },
       backLink: {
         display: 'inline-block',
-        marginBottom: '12px',
+        marginBottom: '6px',
         color: 'inherit',
         textDecoration: 'none',
+        opacity: 0.85,
       },
       title: {
-        marginBottom: '8px',
+        fontSize: '2rem',
+        fontWeight: 700,
+        margin: 0,
+        lineHeight: 1.08,
+        color: '#0f172a',
+        '@media (prefers-color-scheme: dark)': { color: '#ffffff' },
       },
-      date: {
-        display: 'block',
-        opacity: 0.6,
-        marginBottom: '12px',
-      },
-      author: {
-        display: 'block',
-        opacity: 0.8,
-        marginBottom: '8px',
-      },
-      stats: {
-        display: 'block',
-        opacity: 0.7,
-        marginBottom: '16px',
+      metaRow: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '12px',
+        alignItems: 'center',
+        color: '#475569',
+        fontSize: '0.95rem',
+        marginTop: '6px',
+        marginBottom: '6px',
+        '@media (prefers-color-scheme: dark)': { color: '#9ca3af' },
       },
       heroImg: {
-        width: '80%',
-        borderRadius: '12px',
-        marginBottom: '16px',
-        //cursor: 'zoom-in',
-        display: 'flex',
+        width: '100%',
+        height: '420px',
+        objectFit: 'cover',
+        borderRadius: '10px',
+        overflow: 'hidden',
+        boxShadow: '0 12px 40px rgba(2,6,23,0.12)',
+        marginTop: '8px',
+        marginBottom: '8px',
+        '@media (max-width: 640px)': { height: '220px' },
       },
       content: {
-        lineHeight: 1.65,
+        lineHeight: 1.75,
+        fontSize: '1rem',
+        color: '#111827',
+        '@media (prefers-color-scheme: dark)': { color: '#e6eef8' },
       },
       muted: {
         opacity: 0.8,
@@ -69,11 +86,11 @@ import { useEffect, useState } from 'react';
         alignItems: 'center',
         gap: '12px',
         marginTop: '8px',
-        marginBottom: '16px',
+        marginBottom: '8px',
       },
       likeCount: {
-        opacity: 0.9,
-        fontWeight: 600,
+        opacity: 0.95,
+        fontWeight: 700,
       },
     });
 
@@ -107,14 +124,16 @@ import { useEffect, useState } from 'react';
 
       if (error === 'not-found') {
         return (
-          <div className={styles.container}>
-            <p>Post not found.</p>
-            <Link to="/blog" className={styles.backLink}>← Back to blog</Link>
+          <div className={styles.root}>
+            <div className={styles.container}>
+              <p>Post not found.</p>
+              <Link to="/blog" className={styles.backLink}>← Back to blog</Link>
+            </div>
           </div>
         );
       }
-      if (error) return <div className={styles.container}>Error: {error}</div>;
-      if (!post) return <div className={styles.container}>Loading…</div>;
+      if (error) return <div className={styles.root}><div className={styles.container}>Error: {error}</div></div>;
+      if (!post) return <div className={styles.root}><div className={styles.container}>Loading…</div></div>;
 
       const hero = (post as any).heroUrl ?? (post as any).heroImageUrl;
       const mdxSource: string = (post as any).mdx ?? (post as any).content ?? '';
@@ -123,68 +142,61 @@ import { useEffect, useState } from 'react';
       const likes = (post as any).likes as number | undefined;
 
       return (
-        <article className={styles.container}>
-          <Link to="/blog" className={styles.backLink}>← All posts</Link>
-          {/* <h1 className={styles.title}>{post.title}</h1> */}
-          <small className={styles.date}>
-            {new Date(post.createdOn).toLocaleDateString()}
-          </small>
-          {author && (
-            <small className={styles.author}>By {author}</small>
-          )}
-
-          <div className={styles.likeRow}>
-            <Button appearance="primary" disabled={likePending} onClick={async () => {
-              if (!post) return;
-              setLikePending(true);
-              // optimistic update
-              setPost({ ...post, likes: (post.likes ?? 0) + 1 });
-              try {
-                const newLikes = await likePost(slug);
-                if (typeof newLikes === 'number') {
-                  setPost((curr) => (curr ? { ...curr, likes: newLikes } : curr));
-                } else {
-                  // If API returns no body, refetch to get the persisted value
-                  const refreshed = await getPostBySlug(slug);
-                  setPost(refreshed);
-                }
-              } catch (e) {
-                // rollback optimistic update on error
-                setPost((curr) => (curr ? { ...curr, likes: Math.max(0, (curr.likes ?? 1) - 1) } : curr));
-              } finally {
-                setLikePending(false);
-              }
-            }}>
-              ❤️ Like
-            </Button>
-            <span className={styles.likeCount}>{(post?.likes ?? 0).toString()}</span>
-          </div>
-
-          {(typeof views === 'number' || typeof likes === 'number') && (
-            <small className={styles.stats}>
-              {typeof views === 'number' ? `👁️ ${views}` : ''}
-              {typeof views === 'number' && typeof likes === 'number' ? ' · ' : ''}
-              {typeof likes === 'number' ? `❤️ ${likes}` : ''}
-            </small>
-          )}
-
-          {hero ? (
-            <a href={toAbsolute(hero)} target="_blank" rel="noopener noreferrer">
-              <img
-                src={toAbsolute(hero)}
-                alt=""
-                className={styles.heroImg}
-              />
-            </a>
-          ) : null}
-
-          {mdxSource ? (
-            <div className={styles.content}>
-              <MdxRenderer mdx={mdxSource} slug={post.slug} />
+        <div className={styles.root}>
+          <article className={styles.container}>
+            <Link to="/blog" className={styles.backLink}>← All posts</Link>
+            <h1 className={styles.title}>{post.title}</h1>
+            <div className={styles.metaRow}>
+              <span>{new Date(post.createdOn).toLocaleDateString()}</span>
+              {author && <span>· By {author}</span>}
+              {(typeof views === 'number' || typeof likes === 'number') && (
+                <span>
+                  {(typeof views === 'number' ? `👁️ ${views}` : '')}
+                  {(typeof views === 'number' && typeof likes === 'number') ? '  ·  ' : ''}
+                  {(typeof likes === 'number' ? `❤️ ${likes}` : '')}
+                </span>
+              )}
             </div>
-          ) : (
-            <p className={styles.muted}>No content available.</p>
-          )}
-        </article>
+
+            {hero ? (
+              <a href={toAbsolute(hero)} target="_blank" rel="noopener noreferrer">
+                <img src={toAbsolute(hero)} alt={post.title || ''} className={styles.heroImg} />
+              </a>
+            ) : null}
+
+            <div className={styles.likeRow}>
+              <Button appearance="primary" disabled={likePending} onClick={async () => {
+                if (!post) return;
+                setLikePending(true);
+                // optimistic update
+                setPost({ ...post, likes: (post.likes ?? 0) + 1 });
+                try {
+                  const newLikes = await likePost(slug);
+                  if (typeof newLikes === 'number') {
+                    setPost((curr) => (curr ? { ...curr, likes: newLikes } : curr));
+                  } else {
+                    const refreshed = await getPostBySlug(slug);
+                    setPost(refreshed);
+                  }
+                } catch (e) {
+                  setPost((curr) => (curr ? { ...curr, likes: Math.max(0, (curr.likes ?? 1) - 1) } : curr));
+                } finally {
+                  setLikePending(false);
+                }
+              }}>
+                ❤️ Like
+              </Button>
+              <span className={styles.likeCount}>{(post?.likes ?? 0).toString()}</span>
+            </div>
+
+            {mdxSource ? (
+              <div className={styles.content}>
+                <MdxRenderer mdx={mdxSource} slug={post.slug} />
+              </div>
+            ) : (
+              <p className={styles.muted}>No content available.</p>
+            )}
+          </article>
+        </div>
       );
     }
