@@ -99,6 +99,39 @@ function App() {
   const [spotlightItems, setSpotlightItems] = useState<SpotlightItem[]>([]);
   const [spotlightError, setSpotlightError] = useState<string | null>(null);
   const [spotlightLoading, setSpotlightLoading] = useState<boolean>(false);
+  // Responsive carousel: show 1 item on small screens, 3 on larger
+  const [carouselItemsToShow, setCarouselItemsToShow] = useState<number>(() => {
+    try {
+      if (typeof window !== 'undefined' && window.matchMedia) {
+        return window.matchMedia('(max-width: 640px)').matches ? 1 : 3;
+      }
+    } catch {
+      // ignore
+    }
+    return 3;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(max-width: 640px)');
+    const onChange = (ev: MediaQueryListEvent | MediaQueryList) => {
+      try {
+        // some older browsers pass MediaQueryList instead of event
+        const matches = 'matches' in ev ? ev.matches : mq.matches;
+        setCarouselItemsToShow(matches ? 1 : 3);
+      } catch {
+        // ignore
+      }
+    };
+    // initial
+    onChange(mq as any);
+    if ((mq as any).addEventListener) (mq as any).addEventListener('change', onChange);
+    else (mq as any).addListener(onChange);
+    return () => {
+      if ((mq as any).removeEventListener) (mq as any).removeEventListener('change', onChange);
+      else (mq as any).removeListener(onChange);
+    };
+  }, []);
 
   function normalizeHeroUrl(url?: string | null): string | undefined {
     if (!url) return undefined;
@@ -167,7 +200,7 @@ function App() {
                   <h2 className={styles.spotlightTitle}>Spotlight</h2>
                   {spotlightError && !spotlightLoading && <div>Failed to load spotlight: {spotlightError}</div>}
                   {!spotlightError && spotlightItems.length > 0 && (
-                    <Carousel itemsToShow={3} initialIndex={0}>
+                    <Carousel itemsToShow={carouselItemsToShow} initialIndex={0}>
                       {spotlightItems.map((post, idx) => (
                         <SpotlightCard
                           key={post.slug}
