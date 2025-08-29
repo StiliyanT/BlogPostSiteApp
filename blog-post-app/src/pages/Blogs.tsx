@@ -1,7 +1,7 @@
 import { makeStyles, Spinner } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
 import SpotlightCard from "../components/SpotlightCard";
-import { getPosts, getPostBySlug } from "../lib/apis";
+import { getPosts, getPostBySlug, trackClickView } from "../lib/apis";
 import type { BlogPostListItem } from "../lib/apis";
 import { toAbsolute } from "../lib/urls";
 
@@ -322,6 +322,7 @@ export default function Blogs() {
                   likes={typeof post.likes === 'number' ? post.likes : 0}
                   createdOn={post.createdOn}
                   to={`/blog/${post.slug}`}
+                  onClick={() => trackClickView(post.slug)}
                 />
               ))}
             </div>

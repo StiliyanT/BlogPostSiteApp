@@ -11,6 +11,7 @@ interface SpotlightCardProps {
   createdOn?: string | Date;
   to?: string; // optional route target
   isNew?: boolean; // highlight newest post
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement | HTMLDivElement>) => void;
 }
 
 const useStyles = makeStyles({
@@ -110,7 +111,7 @@ const useStyles = makeStyles({
   },
 });
 
-const SpotlightCard: FC<SpotlightCardProps> = ({ name, image, author, views, likes, createdOn, to, isNew }) => {
+const SpotlightCard: FC<SpotlightCardProps> = ({ name, image, author, views, likes, createdOn, to, isNew, onClick }) => {
   const styles = useStyles();
   const dateLabel = createdOn ? new Date(createdOn).toLocaleDateString() : null;
 
@@ -150,11 +151,11 @@ const SpotlightCard: FC<SpotlightCardProps> = ({ name, image, author, views, lik
   );
 
   return to ? (
-    <Link to={to} className={styles.link} aria-label={`Open ${name}`}>
+    <Link to={to} className={styles.link} aria-label={`Open ${name}`} onClick={onClick}>
       {content}
     </Link>
   ) : (
-    content
+    <div onClick={onClick}>{content}</div>
   );
 };
 

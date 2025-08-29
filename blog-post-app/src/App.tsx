@@ -14,7 +14,7 @@ import SpotlightCard from "./components/SpotlightCard";
 import BlogList from "./components/BlogList";
 import BlogPost from "./components/BlogPost";
 import Carousel from "./components/Carousel";
-import { getPosts, getPostBySlug, type BlogPostListItem } from "./lib/apis";
+import { getPosts, getPostBySlug, type BlogPostListItem, trackClickView } from "./lib/apis";
 import { toAbsolute } from "./lib/urls";
 
 const useStyles = makeStyles({
@@ -201,7 +201,7 @@ function App() {
                   {spotlightError && !spotlightLoading && <div>Failed to load spotlight: {spotlightError}</div>}
                   {!spotlightError && spotlightItems.length > 0 && (
                     <Carousel itemsToShow={carouselItemsToShow} initialIndex={0}>
-                      {spotlightItems.map((post, idx) => (
+            {spotlightItems.map((post, idx) => (
                         <SpotlightCard
                           key={post.slug}
                           name={post.title || "Untitled"}
@@ -211,7 +211,8 @@ function App() {
                           likes={typeof post.likes === 'number' ? post.likes : 0}
                           createdOn={post.createdOn}
                           to={`/blog/${post.slug}`}
-                          isNew={idx === 0}
+              isNew={idx === 0}
+              onClick={() => trackClickView(post.slug)}
                         />
                       ))}
                     </Carousel>

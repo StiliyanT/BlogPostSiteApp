@@ -103,6 +103,34 @@ export function trackPostView(slug: string): void {
   }
 }
 
+// Client-side click tracker for Spotlight cards.
+// Prevents duplicate views within a time window using localStorage and sends the view via sendBeacon/fetch.
+export function trackClickView(slug: string, windowMs = 6 * 60 * 60 * 1000): void {
+  try {
+    if (!slug) return;
+    const key = `viewed:${slug}`;
+    const now = Date.now();
+    const last = Number(localStorage.getItem(key) || 0);
+    if (last && now - last <= windowMs) return; // already counted recently
+    // mark immediately to avoid duplicate sends on rapid clicks
+    try { localStorage.setItem(key, String(now)); } catch {}
+    const url = `${API_BASE}/api/blogposts/slug/${encodeURIComponent(slug)}/view`;
+    try {
+      if (navigator.sendBeacon) {
+        const blob = new Blob([''], { type: 'text/plain' });
+        navigator.sendBeacon(url, blob);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    // fallback to non-blocking fetch with keepalive where available
+    try { void fetch(url, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'text/plain' }, body: '' }); } catch {}
+  } catch {
+    // swallow any errors — tracking must not break navigation
+  }
+}
+
 // Admin-protected APIs
 export async function publishPost(id: string, token: string): Promise<void> {
   const res = await fetch(`${API_BASE}/api/blogposts/${encodeURIComponent(id)}/publish`, {
