@@ -64,8 +64,35 @@ namespace BlogPostSiteAPI.Controllers
             var post = await _repo.GetBySlugAsync(slug);
             if (post is null) return NotFound();
 
-            var indexPath = Path.Combine(post.ContentPath, "index.mdx");
-            if (!System.IO.File.Exists(indexPath)) return NotFound("index.mdx not found.");
+            // Resolve index.mdx robustly: contentPath may be a folder, or accidentally a file path.
+            string? indexPath = null;
+
+            try
+            {
+                // Candidate 1: ContentPath is a folder containing index.mdx
+                var candidate1 = Path.Combine(post.ContentPath ?? string.Empty, "index.mdx");
+                if (System.IO.File.Exists(candidate1)) indexPath = candidate1;
+
+                // Candidate 2: ContentPath itself points to an index.mdx file
+                if (indexPath == null && !string.IsNullOrWhiteSpace(post.ContentPath) && Path.GetFileName(post.ContentPath).Equals("index.mdx", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(post.ContentPath))
+                {
+                    indexPath = post.ContentPath;
+                }
+
+                // Candidate 3: search for index.mdx anywhere under the content path
+                if (indexPath == null && System.IO.Directory.Exists(post.ContentPath ?? string.Empty))
+                {
+                    var found = System.IO.Directory.GetFiles(post.ContentPath!, "index.mdx", SearchOption.AllDirectories).FirstOrDefault();
+                    if (!string.IsNullOrEmpty(found) && System.IO.File.Exists(found)) indexPath = found;
+                }
+            }
+            catch
+            {
+                // If any IO errors occur, treat as not found and continue to return a clear NotFound below
+            }
+
+            if (indexPath == null) return NotFound("index.mdx not found.");
+
             var mdx = await System.IO.File.ReadAllTextAsync(indexPath, ct);
 
             string? heroUrl = null;
