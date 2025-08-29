@@ -177,10 +177,15 @@ namespace BlogPostSiteAPI.Controllers
         private string BuildConfirmUrl(string userId, string token)
         {
             var request = HttpContext.Request;
-            var origin = $"{request.Scheme}://{request.Host.Value}";
+            // Prefer an explicit frontend origin so emails send links to the client app.
+            // Check configuration key Frontend:Origin or environment variable FRONTEND_ORIGIN.
+            var configuredFrontend = _config["Frontend:Origin"] ?? Environment.GetEnvironmentVariable("FRONTEND_ORIGIN");
+            var origin = !string.IsNullOrWhiteSpace(configuredFrontend) ? configuredFrontend : $"{request.Scheme}://{request.Host.Value}";
             var encodedToken = System.Net.WebUtility.UrlEncode(token);
             // Frontend route can read userId & token from query and call /api/auth/confirm
-            return $"{origin}/confirm?userId={userId}&token={encodedToken}";
+            var url = $"{origin.TrimEnd('/')}/confirm?userId={userId}&token={encodedToken}";
+            try { HttpContext.RequestServices.GetRequiredService<ILogger<AuthController>>().LogInformation("Built email confirm URL: {Url}", url); } catch { }
+            return url;
         }
 
     [HttpPost("seed-admin")]
