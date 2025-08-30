@@ -155,13 +155,11 @@ function App() {
           newest.map(async (p): Promise<SpotlightItem> => {
             try {
               const detail = await getPostBySlug(p.slug);
-              const rawAuthor = (detail as any).author;
-              const authorName = rawAuthor?.name ?? (typeof rawAuthor === 'string' ? rawAuthor : 'Unknown');
               return {
                 slug: p.slug,
                 title: p.title,
                 image: normalizeHeroUrl((detail as any).heroUrl ?? (detail as any).heroImageUrl),
-                author: authorName,
+                author: (detail as any).author ?? 'Unknown',
                 views: (detail as any).views ?? 0,
                 likes: (detail as any).likes ?? 0,
                 createdOn: p.createdOn,
