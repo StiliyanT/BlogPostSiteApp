@@ -45,13 +45,11 @@ namespace BlogPostSiteAPI.Controllers
 
         // POST api/<CategoriesController>
         [HttpPost]
-        public async Task<IActionResult> CreateCategoryAsync(Category category)
+        public async Task<IActionResult> CreateCategoryAsync([FromBody] Category category)
         {
-            category.Id = Guid.NewGuid();
-            
+            if (category == null) return BadRequest("Missing category body");
             var newCategory = await _categoriesRepository.CreateCategoryAsync(category);
-
-            return Created($"Entity with name {newCategory.Name} of type {nameof(newCategory)} was successfully created.", newCategory);
+            return CreatedAtAction(nameof(GetCategoryByIdAsync), new { id = newCategory.Id }, newCategory);
         }
 
         // PUT api/<CategoriesController>/5

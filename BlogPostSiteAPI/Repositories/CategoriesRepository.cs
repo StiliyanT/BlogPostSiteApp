@@ -35,7 +35,10 @@ namespace BlogPostSiteAPI.Repositories
 
         public async Task<Category> CreateCategoryAsync(Category category)
         {
-            category.Id = Guid.NewGuid();
+            if (category == null) throw new ArgumentNullException(nameof(category));
+            if (category.Id == Guid.Empty) category.Id = Guid.NewGuid();
+            // Ensure name is trimmed
+            category.Name = (category.Name ?? string.Empty).Trim();
 
             _dbContext.Categories.Add(category);
             await _dbContext.SaveChangesAsync();
