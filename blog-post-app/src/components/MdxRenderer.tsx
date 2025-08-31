@@ -67,7 +67,11 @@ export default function MdxRenderer({ mdx, slug }: { mdx: string; slug: string }
           Comp = () => React.createElement('div', null, 'Invalid MDX content');
         }
 
-        if (!cancelled) setContent(() => Comp);
+        if (!cancelled) {
+          // Debug: log the shape of the evaluated module/component for diagnostics
+          try { console.debug('[MdxRenderer] evaluated MDX component', { slug, compType: typeof Comp }); } catch {}
+          setContent(() => Comp);
+        }
       } catch (err) {
         if (!cancelled) setContent(() => () => <div>Error rendering content.</div>);
         // Optionally log error
@@ -98,10 +102,17 @@ export default function MdxRenderer({ mdx, slug }: { mdx: string; slug: string }
     }
   }
 
+  // Key the rendered content by a short fingerprint of the MDX so React will remount the
+  // evaluated component whenever the underlying MDX changes. This prevents hook mismatches
+  // when the evaluated module's internal hook usage differs between renders.
+  const contentKey = mdx ? `${mdx.length}:${mdx.slice(0, 16)}` : 'empty';
+
   return (
     <MDXProvider components={mdxComponents}>
       <ErrorBoundary>
-        <Content />
+        <div key={contentKey}>
+          <Content />
+        </div>
       </ErrorBoundary>
     </MDXProvider>
   );
