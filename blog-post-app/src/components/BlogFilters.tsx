@@ -138,19 +138,19 @@ export default function BlogFilters(props: {
   const styles = useStyles();
 
   const [query, setQuery] = useState(value?.query ?? '');
-  const [author, setAuthor] = useState<string | null>(value?.author ?? null);
-  const [category, setCategory] = useState<string | null>(value?.category ?? null);
+  const [author, setAuthor] = useState<string>(value?.author ?? '');
+  const [category, setCategory] = useState<string>(value?.category ?? '');
   const [sort, setSort] = useState<Filters['sort']>(value?.sort ?? 'newest');
   const [sortDir, setSortDir] = useState<Filters['sortDir']>(value?.sortDir ?? 'asc');
   const [liked, setLiked] = useState<boolean>(value?.liked ?? false);
   const [expanded, setExpanded] = useState<boolean>(false);
 
   useEffect(() => {
-    setQuery(value?.query ?? '');
-    setAuthor(value?.author ?? null);
-    setCategory(value?.category ?? null);
-    setLiked(value?.liked ?? false);
-    setSort(value?.sort ?? 'newest');
+  setQuery(value?.query ?? '');
+  setAuthor(value?.author ?? '');
+  setCategory(value?.category ?? '');
+  setLiked(value?.liked ?? false);
+  setSort(value?.sort ?? 'newest');
   }, [value]);
 
   useEffect(() => {
@@ -202,7 +202,7 @@ export default function BlogFilters(props: {
               className={styles.dropdown}
               listbox={{ className: styles.dropdownListbox }}
             >
-              <Option value="">All authors</Option>
+              <Option value=''>All authors</Option>
               {authorOptions.map((a) => (
                 <Option key={a} value={a}>{a}</Option>
               ))}
@@ -216,7 +216,7 @@ export default function BlogFilters(props: {
               className={styles.dropdown}
               listbox={{ className: styles.dropdownListbox }}
             >
-              <Option value="">All categories</Option>
+              <Option value=''>All categories</Option>
               {categoryOptions.map((c) => (
                 <Option key={c} value={c}>{c}</Option>
               ))}
@@ -248,7 +248,7 @@ export default function BlogFilters(props: {
           </div>
 
           <div>
-            <Button onClick={() => { setQuery(''); setAuthor(null); setSort('newest'); setSortDir('desc'); }} appearance="outline">Clear</Button>
+            <Button onClick={() => { setQuery(''); setAuthor(''); setSort('newest'); setSortDir('asc'); }} appearance="outline">Clear</Button>
           </div>
         </div>
       </div>
