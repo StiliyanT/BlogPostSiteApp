@@ -12,9 +12,9 @@ namespace BlogPostSiteAPI.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-        private readonly CategoriesRepository _categoriesRepository;
+        private readonly ICategoriesRepository _categoriesRepository;
 
-        public CategoriesController(CategoriesRepository categoriesRepository)
+        public CategoriesController(ICategoriesRepository categoriesRepository)
         {
             _categoriesRepository = categoriesRepository;
         }
