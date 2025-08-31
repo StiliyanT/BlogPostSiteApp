@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect, useMemo, useState } from 'react';
-import { type BlogPostListItem, deletePost, getPosts, publishPost, uploadPostZip, getAuthors, getCategories, createCategory } from '../lib/apis';
+import { type BlogPostListItem, deletePost, getPosts, publishPost, uploadPostZip, getAuthors, getCategories, createCategory, getPostBySlug } from '../lib/apis';
 import { Toaster, useToastController, Toast, ToastTitle, makeStyles, shorthands, tokens, Button, Input, Field, Dropdown, Option } from '@fluentui/react-components';
 
 const useStyles = makeStyles({
@@ -136,6 +136,9 @@ export default function Admin() {
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [slug, setSlug] = useState('');
+  const [title, setTitle] = useState('');
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [slugError, setSlugError] = useState<string | null>(null);
   const [authors, setAuthors] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
@@ -162,6 +165,37 @@ export default function Admin() {
       if (list && list.length > 0) setSelectedCategoryId(list[0].id);
     }).catch(() => {});
   }, []);
+
+  // simple slugify helper
+  function slugify(input: string): string {
+    if (!input) return '';
+    // Normalize diacritics, lower-case, replace non-alnum with '-', collapse hyphens, trim
+    let s = input.normalize('NFKD').replace(/\p{Diacritic}/gu, '');
+    s = s.toLowerCase();
+    // replace any non-alphanumeric char with hyphen
+    s = s.replace(/[^a-z0-9]+/g, '-');
+    // collapse multiple hyphens
+    s = s.replace(/-+/g, '-');
+    // trim hyphens
+    s = s.replace(/^-|-$/g, '');
+    // limit length
+    if (s.length > 120) s = s.slice(0, 120).replace(/-$/,'');
+    return s;
+  }
+
+  // Auto-generate slug when title changes unless the user has manually edited slug
+  useEffect(() => {
+    const generated = slugify(title);
+    // If slug is empty or matches previous generated form, update it
+    // Heuristic: if current slug is empty or equals generated when trimmed, replace it
+    if (!slug || slug === generated || slug === slugify(slug)) {
+      setSlug(generated);
+    }
+    // reset validation when typing
+    setTitleError(null);
+    setSlugError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title]);
 
   const refresh = async () => {
     const list = await getPosts();
@@ -221,14 +255,49 @@ export default function Admin() {
     if (!token || !file) return;
     setBusy(true);
     setError(null);
+    // Validate title
+    if (!title || title.trim().length === 0) {
+      setTitleError('Title is required');
+      setBusy(false);
+      return;
+    }
+    // sanitize slug and validate
+    const sanitized = slugify(slug || title);
+    if (!sanitized) {
+      setSlugError('Invalid title/slug after sanitization');
+      setBusy(false);
+      return;
+    }
+    setSlug(sanitized);
+
+    // Quick local duplicate check against loaded items
+    const existsLocally = (items ?? []).some(p => String(p.slug).toLowerCase() === sanitized.toLowerCase());
+    if (existsLocally) {
+      setSlugError('A post with this slug already exists (locally). Choose a different title or slug.');
+      setBusy(false);
+      return;
+    }
+
     try {
-  await uploadPostZip({ file, slug: slug || undefined, authorId: selectedAuthorId ?? undefined, categoryId: selectedCategoryId ?? undefined, token });
-      setFile(null); setSlug('');
+      // Also check server-side to be safe
+      try {
+        await getPostBySlug(sanitized);
+        // If we didn't throw, the slug exists on server
+        setSlugError('A post with this slug already exists on the server. Choose a different title or slug.');
+        setBusy(false);
+        return;
+      } catch (err: any) {
+        // getPostBySlug throws Error('not-found') when 404; ignore that and proceed
+        if (String(err?.message || '') !== 'not-found') throw err;
+      }
+
+      await uploadPostZip({ file, slug: sanitized || undefined, authorId: selectedAuthorId ?? undefined, categoryId: selectedCategoryId ?? undefined, token });
+      setFile(null); setSlug(''); setTitle('');
       await refresh();
-  dispatchToast(<Toast><ToastTitle>Upload complete</ToastTitle></Toast>, { intent: 'success' });
+      dispatchToast(<Toast><ToastTitle>Upload complete</ToastTitle></Toast>, { intent: 'success' });
     } catch (e) {
       setError(String((e as any)?.message || e));
-  dispatchToast(<Toast><ToastTitle>Upload failed</ToastTitle></Toast>, { intent: 'error' });
+      dispatchToast(<Toast><ToastTitle>Upload failed</ToastTitle></Toast>, { intent: 'error' });
     } finally { setBusy(false); }
   };
 
@@ -264,6 +333,10 @@ export default function Admin() {
         <h3>Upload new post (.zip)</h3>
         <form onSubmit={onUpload} className={styles.form}>
           <input type="file" accept=".zip" onChange={e => setFile(e.target.files?.[0] ?? null)} />
+          <Field label="Title">
+            <Input value={title} onChange={e => setTitle((e.target as HTMLInputElement).value)} className={styles.input} placeholder="Post title (required)" />
+            {titleError && <div className={styles.error}>{titleError}</div>}
+          </Field>
           <Field label="Author">
             <Dropdown
               selectedOptions={selectedAuthorId ? [selectedAuthorId] : []}
@@ -292,6 +365,7 @@ export default function Admin() {
           </Field>
           <Field label="Optional slug">
             <Input value={slug} onChange={e => setSlug((e.target as HTMLInputElement).value)} placeholder="my-awesome-post" className={styles.input} />
+            {slugError && <div className={styles.error}>{slugError}</div>}
           </Field>
           <Button type="submit" className={styles.ctaBtn} disabled={!file || busy}>Upload</Button>
         </form>
