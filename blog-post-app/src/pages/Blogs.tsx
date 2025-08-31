@@ -11,15 +11,6 @@ import { useAuth } from "../hooks/useAuth";
 
 const useStyles = makeStyles({
   root: {
-    width: "100vw",
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "center",
-    background: "linear-gradient(135deg, #f3f4f6 0%, #e0e7ef 100%)",
-    '@media (prefers-color-scheme: dark)': {
-      background: "linear-gradient(135deg, #171717 0%, #262626 100%)",
-    },
     paddingTop: '2rem',
     paddingBottom: '6rem', // space for fixed pagination bar
   },
@@ -56,7 +47,6 @@ const useStyles = makeStyles({
     opacity: 0.75,
     fontSize: '1.05rem',
   },
-  // Fixed pagination bar anchored to bottom of viewport
   paginationBar: {
     position: 'fixed',
     left: 0,
@@ -103,9 +93,8 @@ const useStyles = makeStyles({
     '&:hover': { backgroundColor: '#f8fafc' },
     '&:disabled': { opacity: 0.5, cursor: 'default' },
   },
-  // New: default style for numbered page buttons (non-selected)
   pageNumberButton: {
-    backgroundColor: '#f1f5f9', // slate-100
+    backgroundColor: '#f1f5f9',
     '&:hover': { backgroundColor: '#e2e8f0' },
     '@media (prefers-color-scheme: dark)': {
       backgroundColor: '#262626',
@@ -113,20 +102,18 @@ const useStyles = makeStyles({
       border: '1px solid #404040',
     },
   },
-  // Selected numbered page button style
   pageButtonActive: {
-    backgroundColor: '#e2e8f0', // gray-200 instead of white
+    backgroundColor: '#e2e8f0',
     color: '#0f172a',
     border: '1px solid #cbd5e1',
-    boxShadow: '0 0 0 1px #ffffff', // thinner white outline
+    boxShadow: '0 0 0 1px #ffffff',
     '@media (prefers-color-scheme: dark)': {
-      backgroundColor: '#404040', // dark gray for dark mode
+      backgroundColor: '#404040',
       color: '#e5e7eb',
       border: '1px solid #404040',
-      boxShadow: '0 0 0 1px #ffffff', // keep white outline in dark mode
+      boxShadow: '0 0 0 1px #ffffff',
     },
   },
-  // New: ellipsis token style
   pageEllipsis: {
     padding: '0.5rem 0.75rem',
     color: '#64748b',
@@ -145,9 +132,8 @@ const useStyles = makeStyles({
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 'calc(100vh - 8rem)', // match content area height
+    minHeight: 'calc(100vh - 8rem)',
     width: '100%',
-    
   },
   loadingOverlay: {
     position: 'fixed',
@@ -212,7 +198,6 @@ function normalizeHeroUrl(url?: string | null): string | undefined {
   if (!url) return undefined;
   const s = String(url);
   if (/^(https?:)?\/\//i.test(s) || s.startsWith('data:')) return s; // absolute or data URL
-  // Treat anything else as API-relative path, e.g. "/static/posts/..."
   return toAbsolute(s);
 }
 
@@ -259,10 +244,8 @@ export default function Blogs() {
   const [showSignInModal, setShowSignInModal] = useState(false);
 
   function handleFiltersChange(v: BlogFiltersType) {
-    // If user requested liked posts but is not signed in, open sign-in modal and don't set liked
     if (v.liked && !auth.token) {
       setShowSignInModal(true);
-      // preserve other filter values but keep liked false
       setFilters({ ...v, liked: false });
       setCurrentPage(1);
       return;
@@ -271,8 +254,6 @@ export default function Blogs() {
     setCurrentPage(1);
   }
 
-  // If the page was opened with ?liked=true but the user is not signed in,
-  // show the sign-in modal and clear the liked filter (same UX as toggling it).
   useEffect(() => {
     if (filters.liked && !auth.token) {
       setShowSignInModal(true);
@@ -290,7 +271,6 @@ export default function Blogs() {
         setError(null);
         let list = await getPosts();
 
-        // If filters request liked posts, fetch those instead (requires auth token)
         if (filters.liked) {
           try {
             list = await getLikedPosts(auth.token ?? null);
@@ -304,19 +284,19 @@ export default function Blogs() {
           }
         }
 
-  const detailed = await Promise.all(
+        const detailed = await Promise.all(
           list.map(async (p: BlogPostListItem): Promise<SpotlightItem> => {
             try {
               const detail = await getPostBySlug(p.slug);
+              const hero = (detail as any).heroUrl ?? (detail as any).heroImageUrl;
               return {
                 slug: p.slug,
                 title: p.title,
-                image: normalizeHeroUrl((detail as any).heroUrl),
+                image: normalizeHeroUrl(hero),
                 author: (detail as any).author?.name ?? (typeof (detail as any).author === 'string' ? (detail as any).author : 'Unknown'),
                 category: (detail as any).category?.name ?? undefined,
-  // Use detail.views when available; fall back to the list item's views (p.views)
-  views: (detail as any).views ?? (p.views ?? 0),
-    likes: (detail as any).likes ?? (p.likes ?? 0),
+                views: (detail as any).views ?? (p.views ?? 0),
+                likes: (detail as any).likes ?? (p.likes ?? 0),
                 createdOn: p.createdOn,
               };
             } catch (e) {
@@ -326,7 +306,7 @@ export default function Blogs() {
           })
         );
 
-  if (!cancelled) setItems(detailed);
+        if (!cancelled) setItems(detailed);
       } catch (e: any) {
         console.error('Failed to load posts', e);
         if (!cancelled) setError(e?.message || 'Failed to load posts');
@@ -339,7 +319,6 @@ export default function Blogs() {
     };
   }, [filters, auth.token]);
 
-  // Update local items when a post likes update is dispatched
   useEffect(() => {
     function onLikesUpdated(e: any) {
       const { slug, likes } = e.detail || {};
@@ -350,16 +329,13 @@ export default function Blogs() {
     return () => window.removeEventListener('post:likes-updated', onLikesUpdated as any);
   }, []);
 
-  // Reset to first page when the data set changes
   useEffect(() => {
     setCurrentPage(1);
   }, [items.length]);
 
-  // derive author list for filter dropdown
   const authors = Array.from(new Set(items.map(i => i.author).filter(Boolean) as string[]));
   const categoryList = Array.from(new Set(items.map(i => i.category).filter(Boolean) as string[]));
 
-  // apply filters & sorting
   const filtered = items.filter(it => {
     if (filters.query) {
       const q = filters.query.toLowerCase();
@@ -379,7 +355,7 @@ export default function Blogs() {
       case 'views': return dir * (((b.views || 0) - (a.views || 0)));
       case 'likes': return dir * (((b.likes || 0) - (a.likes || 0)));
       case 'alpha': return dir * ((a.title || '').localeCompare(b.title || ''));
-      default: // newest
+      default:
         return dir * (new Date(b.createdOn || '').getTime() - new Date(a.createdOn || '').getTime());
     }
   });
@@ -394,7 +370,6 @@ export default function Blogs() {
       <div className={styles.content}>
         <h1 className={styles.title}>All Blog Posts</h1>
 
-        {/* Middle content area */}
         <div>
           <BlogFilters authors={authors} categories={categoryList} value={filters} onChange={(v: BlogFiltersType) => handleFiltersChange(v)} />
           {showSignInModal && (
