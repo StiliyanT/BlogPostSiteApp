@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { makeStyles, Input, Button, Select, Option } from '@fluentui/react-components';
+import { makeStyles, Input, Button, Select, Option, Checkbox } from '@fluentui/react-components';
 
 export type Filters = {
   query: string;
   author?: string | null | undefined;
   category?: string | null | undefined;
+  liked?: boolean;
   sort?: 'newest' | 'views' | 'likes' | 'alpha';
 };
 
@@ -67,19 +68,27 @@ export default function BlogFilters(props: {
   const [author, setAuthor] = useState<string | null>(value?.author ?? null);
   const [category, setCategory] = useState<string | null>(value?.category ?? null);
   const [sort, setSort] = useState<Filters['sort']>(value?.sort ?? 'newest');
+  const [liked, setLiked] = useState<boolean>(value?.liked ?? false);
   const [expanded, setExpanded] = useState<boolean>(false);
 
   useEffect(() => {
     setQuery(value?.query ?? '');
     setAuthor(value?.author ?? null);
-  setCategory(value?.category ?? null);
+    setCategory(value?.category ?? null);
+    setLiked(value?.liked ?? false);
     setSort(value?.sort ?? 'newest');
   }, [value]);
 
   useEffect(() => {
-    onChange?.({ query: query.trim(), author: author || undefined, category: category || undefined, sort });
+    onChange?.({ query: query.trim(), author: author || undefined, category: category || undefined, liked, sort });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, author, category, sort]);
+
+  useEffect(() => {
+    // ensure onChange runs when liked toggles
+    onChange?.({ query: query.trim(), author: author || undefined, category: category || undefined, liked, sort });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liked]);
 
   const authorOptions = useMemo(() => {
     const unique = Array.from(new Set(authors.filter(Boolean)));
@@ -147,6 +156,10 @@ export default function BlogFilters(props: {
             </Select>
           </div>
 
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Checkbox label="Liked" checked={liked} onChange={(_e, data) => setLiked(!!data?.checked)} />
+          </div>
+
           <div>
             <Button onClick={() => { setQuery(''); setAuthor(null); setSort('newest'); }} appearance="outline">Clear</Button>
           </div>
@@ -172,6 +185,7 @@ export default function BlogFilters(props: {
             <Option value="likes">Most liked</Option>
             <Option value="alpha">A → Z</Option>
           </Select>
+          <Checkbox label="Liked" checked={liked} onChange={(_e, data) => setLiked(!!data?.checked)} />
           <Button onClick={() => { setQuery(''); setAuthor(null); setSort('newest'); setExpanded(false); }} appearance="outline">Clear</Button>
         </div>
       )}

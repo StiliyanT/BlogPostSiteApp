@@ -1,11 +1,13 @@
 import { makeStyles, Spinner } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
+import { Link } from 'react-router-dom';
 import SpotlightCard from "../components/SpotlightCard";
 import BlogFilters from "../components/BlogFilters";
 import type { Filters as BlogFiltersType } from "../components/BlogFilters";
-import { getPosts, getPostBySlug, trackClickView } from "../lib/apis";
+import { getPosts, getPostBySlug, trackClickView, getLikedPosts } from "../lib/apis";
 import type { BlogPostListItem } from "../lib/apis";
 import { toAbsolute } from "../lib/urls";
+import { useAuth } from "../hooks/useAuth";
 
 const useStyles = makeStyles({
   root: {
@@ -249,6 +251,21 @@ export default function Blogs() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [filters, setFilters] = useState<BlogFiltersType>({ query: '', author: undefined, sort: 'newest' });
+  const auth = useAuth();
+  const [showSignInModal, setShowSignInModal] = useState(false);
+
+  function handleFiltersChange(v: BlogFiltersType) {
+    // If user requested liked posts but is not signed in, open sign-in modal and don't set liked
+    if (v.liked && !auth.token) {
+      setShowSignInModal(true);
+      // preserve other filter values but keep liked false
+      setFilters({ ...v, liked: false });
+      setCurrentPage(1);
+      return;
+    }
+    setFilters(v);
+    setCurrentPage(1);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -256,7 +273,20 @@ export default function Blogs() {
       try {
         setLoading(true);
         setError(null);
-        const list = await getPosts();
+        let list = await getPosts();
+        // If the user requested liked posts, fetch those instead (requires auth token)
+        if (filters.liked) {
+          try {
+            list = await getLikedPosts(auth.token ?? null);
+          } catch (e: any) {
+            if (e?.message === 'auth-required') {
+              setError('Please sign in to view liked posts.');
+              list = [];
+            } else {
+              throw e;
+            }
+          }
+        }
         console.log('Loaded posts list', list);
   const detailed = await Promise.all(
           list.map(async (p: BlogPostListItem): Promise<SpotlightItem> => {
@@ -339,7 +369,21 @@ export default function Blogs() {
 
         {/* Middle content area */}
         <div>
-          <BlogFilters authors={authors} categories={categoryList} value={filters} onChange={(v: BlogFiltersType) => { setFilters(v); setCurrentPage(1); }} />
+          <BlogFilters authors={authors} categories={categoryList} value={filters} onChange={(v: BlogFiltersType) => handleFiltersChange(v)} />
+          {showSignInModal && (
+            <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} onClick={() => { setShowSignInModal(false); }} />
+              <div style={{ background: 'white', padding: '1.25rem', borderRadius: 8, minWidth: 320, zIndex: 1201 }}>
+                <h3 style={{ marginTop: 0 }}>Sign in required</h3>
+                <p style={{ marginBottom: '1rem' }}>Viewing liked posts requires signing in. Please sign in or create an account.</p>
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                  <Link to="/login"><button style={{ padding: '0.5rem 0.75rem' }} onClick={() => setShowSignInModal(false)}>Sign in</button></Link>
+                  <Link to="/register"><button style={{ padding: '0.5rem 0.75rem' }} onClick={() => setShowSignInModal(false)}>Register</button></Link>
+                  <button style={{ padding: '0.5rem 0.75rem' }} onClick={() => setShowSignInModal(false)}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
           {error && !loading && <div className={styles.muted}>Error: {error}</div>}
 
           {!loading && !error && pageItems.length === 0 && (
