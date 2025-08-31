@@ -37,23 +37,40 @@ namespace BlogPostSiteAPI.Startup
                 }
                 catch (Exception ex)
                 {
+                    // Log the exception for diagnostics
                     app.Logger.LogError(ex, "Unhandled exception processing {Path}", ctx.Request.Path);
-                    if (!ctx.Response.HasStarted)
+
+                    // If the response has already started, we can't change it. Just log and return.
+                    if (ctx.Response.HasStarted)
                     {
-                        ctx.Response.Clear();
-                        ctx.Response.StatusCode = 500;
-                        ctx.Response.ContentType = "application/json";
-                        var msg = (ex.Message ?? "").Replace('\n', ' ').Replace('\r', ' ');
-                        if (msg.Length > 180) msg = msg.Substring(0, 180);
-                        ctx.Response.Headers["X-Error-Message"] = msg;
-                        if (detailedErrors)
-                        {
-                            await ctx.Response.WriteAsJsonAsync(new { error = ex.Message, stack = ex.StackTrace });
-                        }
-                        else
-                        {
-                            await ctx.Response.WriteAsJsonAsync(new { error = "Internal Server Error" });
-                        }
+                        app.Logger.LogWarning("Response already started for {Path}; not overriding status code after exception.", ctx.Request.Path);
+                        return;
+                    }
+
+                    // If a controller has already set a successful 2xx status code but not written the body yet,
+                    // prefer to preserve that success status instead of overriding with 500. This prevents cases
+                    // where side-effects (e.g., DB writes) completed but a later error would cause a confusing 500.
+                    var currentStatus = ctx.Response.StatusCode;
+                    if (currentStatus >= 200 && currentStatus < 300)
+                    {
+                        app.Logger.LogWarning(ex, "Exception occurred after success status {Status} for {Path}; preserving 2xx response.", currentStatus, ctx.Request.Path);
+                        return;
+                    }
+
+                    // Otherwise return a sanitized 500 response
+                    ctx.Response.Clear();
+                    ctx.Response.StatusCode = 500;
+                    ctx.Response.ContentType = "application/json";
+                    var msg = (ex.Message ?? "").Replace('\n', ' ').Replace('\r', ' ');
+                    if (msg.Length > 180) msg = msg.Substring(0, 180);
+                    ctx.Response.Headers["X-Error-Message"] = msg;
+                    if (detailedErrors)
+                    {
+                        await ctx.Response.WriteAsJsonAsync(new { error = ex.Message, stack = ex.StackTrace });
+                    }
+                    else
+                    {
+                        await ctx.Response.WriteAsJsonAsync(new { error = "Internal Server Error" });
                     }
                 }
             });
