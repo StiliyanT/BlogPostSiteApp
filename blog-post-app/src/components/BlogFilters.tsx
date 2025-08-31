@@ -27,9 +27,10 @@ const useStyles = makeStyles({
     gap: '0.75rem',
     alignItems: 'center',
     width: '100%',
+    flexWrap: 'wrap',
   },
   search: {
-    flex: 1,
+  flex: 1,
   },
   controls: {
     display: 'flex',
@@ -51,6 +52,14 @@ const useStyles = makeStyles({
     '@media (max-width: 640px)': {
       flexDirection: 'column',
       alignItems: 'stretch',
+    },
+  },
+  selectContainer: {
+  minWidth: '160px',
+  width: '220px',
+    '@media (max-width: 640px)': {
+      width: '100%',
+      minWidth: 'auto',
     },
   },
 });
@@ -121,7 +130,7 @@ export default function BlogFilters(props: {
 
         <div className={styles.controls} style={{ display: expanded ? 'flex' : undefined }}>
           {/* desktop controls; on mobile these are shown when expanded */}
-          <div style={{ minWidth: 160 }}>
+          <div className={styles.selectContainer}>
             <Select
               value={author ?? ''}
               onChange={(_e, data) => setAuthor((data?.value as string) || null)}
@@ -134,7 +143,7 @@ export default function BlogFilters(props: {
             </Select>
           </div>
 
-          <div style={{ minWidth: 160 }}>
+          <div className={styles.selectContainer}>
             <Select
               value={category ?? ''}
               onChange={(_e, data) => setCategory((data?.value as string) || null)}
@@ -147,7 +156,7 @@ export default function BlogFilters(props: {
             </Select>
           </div>
 
-          <div style={{ minWidth: 160 }}>
+          <div className={styles.selectContainer}>
             <Select value={sort} onChange={(_e, data) => setSort((data?.value as any) ?? 'newest')} appearance="outline">
               <Option value="newest">Newest</Option>
               <Option value="views">Most viewed</Option>
