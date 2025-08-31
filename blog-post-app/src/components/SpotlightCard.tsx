@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import { Card, makeStyles } from "@fluentui/react-components";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 interface SpotlightCardProps {
   name: string;
@@ -202,13 +202,32 @@ const SpotlightCard: FC<SpotlightCardProps> = ({ name, image, slug, author, view
     </Card>
   );
 
-  return to ? (
-    <Link to={to} className={styles.link} aria-label={`Open ${name}`} onClick={onClick}>
-      {content}
-    </Link>
-  ) : (
-    <div onClick={onClick}>{content}</div>
-  );
+  const navigate = useNavigate();
+
+  if (to) {
+    return (
+      <a
+        href={to}
+        className={styles.link}
+        aria-label={`Open ${name}`}
+        onClick={(e) => {
+          try {
+            e.preventDefault();
+            // fire tracking first
+            try { onClick?.(e as any); } catch {}
+            navigate(to);
+          } catch {
+            // fallback to full navigation if SPA navigation fails
+            window.location.href = String(to);
+          }
+        }}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return <div onClick={onClick}>{content}</div>;
 };
 
 export default SpotlightCard;

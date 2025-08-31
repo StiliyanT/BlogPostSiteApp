@@ -245,24 +245,22 @@ import { useEffect, useState, useRef } from 'react';
             </div>
 
             {hero || imgSrc ? (
-              <a href={hero ? toAbsolute(hero) : '#'} target="_blank" rel="noopener noreferrer">
-                <img
-                  src={imgSrc ?? undefined}
-                  alt={post.title || ''}
-                  className={styles.heroImg}
-                  onError={() => {
-                    try {
-                      const info: any = attemptRef as any;
-                      const candidates: string[] = info.candidates || [];
-                      attemptRef.current += 1;
-                      const next = candidates[attemptRef.current];
-                      if (next) setImgSrc(next);
-                    } catch {
-                      // ignore
-                    }
-                  }}
-                />
-              </a>
+              <img
+                src={imgSrc ?? undefined}
+                alt={post.title || ''}
+                className={styles.heroImg}
+                onError={() => {
+                  try {
+                    const info: any = attemptRef as any;
+                    const candidates: string[] = info.candidates || [];
+                    attemptRef.current += 1;
+                    const next = candidates[attemptRef.current];
+                    if (next) setImgSrc(next);
+                  } catch {
+                    // ignore
+                  }
+                }}
+              />
             ) : null}
 
             {mdxSource ? (
