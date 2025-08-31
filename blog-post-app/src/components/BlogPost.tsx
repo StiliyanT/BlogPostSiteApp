@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
     import { useParams, Link } from 'react-router-dom';
   import { getPostBySlug, type BlogPostDetail, trackPostView, toggleLike, getLikedPosts } from '../lib/apis';
     import MdxRenderer from '../components/MdxRenderer';
@@ -157,6 +157,26 @@ import { useEffect, useState } from 'react';
       if (!post) return <div className={styles.root}><div className={styles.container}>Loading…</div></div>;
 
       const hero = (post as any).heroUrl ?? (post as any).heroImageUrl;
+      const [imgSrc, setImgSrc] = useState<string | null>(null);
+      const attemptRef = useRef(0);
+
+      // Build a candidate list when hero or slug changes. First candidate is the API-provided hero (normalized),
+      // then try common filenames inside the post's assets folder, then fall back to a placeholder.
+      useEffect(() => {
+        attemptRef.current = 0;
+        if (!slug) { setImgSrc(null); return; }
+        const candidates: string[] = [];
+        if (hero) candidates.push(toAbsolute(hero));
+        const assetBase = `/static/posts/posts/${slug}/assets`;
+        candidates.push(`${assetBase}/hero.jpg`);
+        candidates.push(`${assetBase}/hero.png`);
+        candidates.push(`${assetBase}/image.png`);
+        candidates.push(`${assetBase}/image.jpg`);
+        candidates.push('/static/placeholder.jpg');
+        setImgSrc(candidates[0] ?? null);
+        // store candidates on the ref so onError can advance through them
+        (attemptRef as any).candidates = candidates;
+      }, [hero, slug]);
       const mdxSource: string = (post as any).mdx ?? (post as any).content ?? '';
   const authorObj = (post as any).author as any;
   const authorName = authorObj?.name ?? (typeof authorObj === 'string' ? authorObj : undefined);
@@ -222,9 +242,24 @@ import { useEffect, useState } from 'react';
               </div>
             </div>
 
-            {hero ? (
-              <a href={toAbsolute(hero)} target="_blank" rel="noopener noreferrer">
-                <img src={toAbsolute(hero)} alt={post.title || ''} className={styles.heroImg} />
+            {hero || imgSrc ? (
+              <a href={hero ? toAbsolute(hero) : '#'} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={imgSrc ?? undefined}
+                  alt={post.title || ''}
+                  className={styles.heroImg}
+                  onError={() => {
+                    try {
+                      const info: any = attemptRef as any;
+                      const candidates: string[] = info.candidates || [];
+                      attemptRef.current += 1;
+                      const next = candidates[attemptRef.current];
+                      if (next) setImgSrc(next);
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                />
               </a>
             ) : null}
 

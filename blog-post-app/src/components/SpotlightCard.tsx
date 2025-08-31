@@ -136,20 +136,28 @@ const SpotlightCard: FC<SpotlightCardProps> = ({ name, image, slug, author, view
           style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
           onError={(e) => {
             const img = e.currentTarget as HTMLImageElement;
-            // avoid infinite loop
-            if (img.dataset.triedFallback) {
-              img.src = '/placeholder.jpg';
-              return;
-            }
-            img.dataset.triedFallback = '1';
-            if (typeof (slug) === 'string' && slug) {
-              // Try the conventional static path used by the API: /static/posts/posts/{slug}/assets/hero.jpg
-              img.src = `/static/posts/posts/${slug}/assets/hero.jpg`;
-              // still allow the browser to attempt to load it; if that fails, onError will run again and then use placeholder
+            // Keep track of attempted fallbacks to avoid loops
+            const tried = (img.dataset.triedFallbacks || '').split(',').filter(Boolean);
+            const candidates = ['hero.jpg', 'hero.png', 'image.png', 'image.jpg'];
+            // If the current src already matches one of the candidates, mark it tried
+            try {
+              const currentName = img.src.split('/').pop() || '';
+              if (currentName && !tried.includes(currentName)) tried.push(currentName);
+            } catch { /* ignore parsing errors */ }
+
+            // Find next candidate we haven't tried yet
+            const next = candidates.find(c => !tried.includes(c));
+            if (next && typeof slug === 'string' && slug) {
+              tried.push(next);
+              img.dataset.triedFallbacks = tried.join(',');
+              img.src = `/static/posts/posts/${slug}/assets/${next}`;
               // eslint-disable-next-line no-console
               console.warn('[SpotlightCard] image failed, trying fallback static path', img.src);
               return;
             }
+
+            // final fallback
+            img.dataset.triedFallbacks = tried.join(',');
             img.src = '/placeholder.jpg';
           }}
         />
