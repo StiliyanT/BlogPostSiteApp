@@ -314,7 +314,8 @@ export default function Blogs() {
                 image: normalizeHeroUrl((detail as any).heroUrl),
                 author: (detail as any).author?.name ?? (typeof (detail as any).author === 'string' ? (detail as any).author : 'Unknown'),
                 category: (detail as any).category?.name ?? undefined,
-    views: (detail as any).views ?? 0,
+  // Use detail.views when available; fall back to the list item's views (p.views)
+  views: (detail as any).views ?? (p.views ?? 0),
     likes: (detail as any).likes ?? (p.likes ?? 0),
                 createdOn: p.createdOn,
               };
