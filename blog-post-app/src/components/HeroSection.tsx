@@ -100,7 +100,7 @@ const HeroSection: React.FC = () => {
   const styles = useStyles();
   return (
     <section className={styles.root}>
-      <h1 className={styles.title}>Welcome to My Blog</h1>
+      <h1 className={styles.title}>Welcome to Lumora</h1>
       <p className={styles.subtitle}>
         Discover insightful articles, tutorials, and resources on React, Fluent UI, and modern web development.
       </p>
