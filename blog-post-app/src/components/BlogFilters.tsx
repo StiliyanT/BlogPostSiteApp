@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { makeStyles, Input, Button, Select, Option, Checkbox } from '@fluentui/react-components';
+import { makeStyles, Input, Button, Dropdown, Option, Checkbox, shorthands } from '@fluentui/react-components';
 
 export type Filters = {
   query: string;
@@ -61,6 +61,36 @@ const useStyles = makeStyles({
     '@media (max-width: 640px)': {
       width: '100%',
       minWidth: 'auto',
+    },
+  },
+  // Dropdown styles mimic Admin panel to ensure listbox background and shadows are visible on glass cards
+  dropdown: {
+    backgroundColor: '#ffffff',
+    border: '1px solid #cbd5e1',
+    borderRadius: '8px',
+    '@media (prefers-color-scheme: dark)': { backgroundColor: '#171717', border: '1px solid #404040' },
+    selectors: {
+      '&:where(:hover)': { ...shorthands.borderColor('#94a3b8') },
+      '&:where(:focus-within)': { ...shorthands.borderColor('#3b82f6'), outline: '2px solid #93c5fd', outlineOffset: '2px', boxShadow: '0 0 0 4px rgba(59,130,246,0.20)' },
+    },
+  },
+  dropdownListbox: {
+    backgroundColor: '#ffffff',
+    border: '1px solid rgba(229,231,235,0.9)',
+    borderRadius: '10px',
+    boxShadow: '0 12px 24px rgba(0,0,0,0.12)',
+    '@media (prefers-color-scheme: dark)': {
+      backgroundColor: '#171717',
+      border: '1px solid rgba(64,64,64,0.85)',
+      boxShadow: '0 18px 40px rgba(0,0,0,0.5)',
+    },
+    selectors: {
+      '& .fui-Option[aria-selected="true"]': { backgroundColor: 'rgba(99,102,241,0.12)' },
+      '& .fui-Option:where(:hover)': { backgroundColor: 'rgba(156,163,175,0.12)' },
+      '@media (prefers-color-scheme: dark)': {
+        '& .fui-Option[aria-selected="true"]': { backgroundColor: 'rgba(99,102,241,0.22)' },
+        '& .fui-Option:where(:hover)': { backgroundColor: 'rgba(156,163,175,0.18)' },
+      },
     },
   },
 });
@@ -133,45 +163,57 @@ export default function BlogFilters(props: {
         <div className={styles.controls} style={{ display: expanded ? 'flex' : undefined }}>
           {/* desktop controls; on mobile these are shown when expanded */}
           <div className={styles.selectContainer}>
-            <Select
-              value={author ?? ''}
-              onChange={(_e, data) => setAuthor((data?.value as string) || null)}
-              appearance="outline"
+            <Dropdown
+              selectedOptions={author ? [author] : ['']}
+              onOptionSelect={(_e, data) => setAuthor(String(data.optionValue ?? null))}
+              className={styles.dropdown}
+              listbox={{ className: styles.dropdownListbox }}
             >
               <Option value="">All authors</Option>
               {authorOptions.map((a) => (
                 <Option key={a} value={a}>{a}</Option>
               ))}
-            </Select>
+            </Dropdown>
           </div>
 
           <div className={styles.selectContainer}>
-            <Select
-              value={category ?? ''}
-              onChange={(_e, data) => setCategory((data?.value as string) || null)}
-              appearance="outline"
+            <Dropdown
+              selectedOptions={category ? [category] : ['']}
+              onOptionSelect={(_e, data) => setCategory(String(data.optionValue ?? null))}
+              className={styles.dropdown}
+              listbox={{ className: styles.dropdownListbox }}
             >
               <Option value="">All categories</Option>
               {categoryOptions.map((c) => (
                 <Option key={c} value={c}>{c}</Option>
               ))}
-            </Select>
+            </Dropdown>
           </div>
 
           <div className={styles.selectContainer}>
-            <Select value={sort} onChange={(_e, data) => setSort((data?.value as any) ?? 'newest')} appearance="outline">
+            <Dropdown
+              selectedOptions={[String(sort)]}
+              onOptionSelect={(_e, data) => setSort(String(data.optionValue ?? 'newest') as any)}
+              className={styles.dropdown}
+              listbox={{ className: styles.dropdownListbox }}
+            >
               <Option value="newest">Newest</Option>
               <Option value="views">Most viewed</Option>
               <Option value="likes">Most liked</Option>
               <Option value="alpha">A → Z</Option>
-            </Select>
+            </Dropdown>
           </div>
 
           <div style={{ width: 96 }}>
-            <Select value={sortDir} onChange={(_e, data) => setSortDir((data?.value as any) ?? 'desc')} appearance="outline">
+            <Dropdown
+              selectedOptions={[String(sortDir)]}
+              onOptionSelect={(_e, data) => setSortDir(String(data.optionValue ?? 'desc') as any)}
+              className={styles.dropdown}
+              listbox={{ className: styles.dropdownListbox }}
+            >
               <Option value="desc">Desc</Option>
               <Option value="asc">Asc</Option>
-            </Select>
+            </Dropdown>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -179,7 +221,7 @@ export default function BlogFilters(props: {
           </div>
 
           <div>
-            <Button onClick={() => { setQuery(''); setAuthor(null); setSort('newest'); }} appearance="outline">Clear</Button>
+            <Button onClick={() => { setQuery(''); setAuthor(null); setSort('newest'); setSortDir('desc'); }} appearance="outline">Clear</Button>
           </div>
         </div>
       </div>
@@ -187,26 +229,37 @@ export default function BlogFilters(props: {
       {/* mobile: show panel when expanded */}
       {expanded && (
         <div className={styles.panel}>
-          <Select
-            value={author ?? ''}
-            onChange={(_e, data) => setAuthor((data?.value as string) || null)}
-            appearance="outline"
+          <Dropdown
+            selectedOptions={author ? [author] : ['']}
+            onOptionSelect={(_e, data) => setAuthor(String(data.optionValue ?? null))}
+            className={styles.dropdown}
+            listbox={{ className: styles.dropdownListbox }}
           >
             <Option value="">All authors</Option>
             {authorOptions.map((a) => (
               <Option key={a} value={a}>{a}</Option>
             ))}
-          </Select>
-          <Select value={sort} onChange={(_e, data) => setSort((data?.value as any) ?? 'newest')} appearance="outline">
+          </Dropdown>
+          <Dropdown
+            selectedOptions={[String(sort)]}
+            onOptionSelect={(_e, data) => setSort(String(data.optionValue ?? 'newest') as any)}
+            className={styles.dropdown}
+            listbox={{ className: styles.dropdownListbox }}
+          >
             <Option value="newest">Newest</Option>
             <Option value="views">Most viewed</Option>
             <Option value="likes">Most liked</Option>
             <Option value="alpha">A → Z</Option>
-          </Select>
-          <Select value={sortDir} onChange={(_e, data) => setSortDir((data?.value as any) ?? 'desc')} appearance="outline">
+          </Dropdown>
+          <Dropdown
+            selectedOptions={[String(sortDir)]}
+            onOptionSelect={(_e, data) => setSortDir(String(data.optionValue ?? 'desc') as any)}
+            className={styles.dropdown}
+            listbox={{ className: styles.dropdownListbox }}
+          >
             <Option value="desc">Desc</Option>
             <Option value="asc">Asc</Option>
-          </Select>
+          </Dropdown>
           <Checkbox label="Liked" checked={liked} onChange={() => setLiked((s) => !s)} />
           <Button onClick={() => { setQuery(''); setAuthor(null); setSort('newest'); setExpanded(false); }} appearance="outline">Clear</Button>
         </div>
