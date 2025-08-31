@@ -109,7 +109,7 @@ export default function BlogFilters(props: {
           className={styles.search}
           placeholder="Search posts by title, summary or author…"
           value={query}
-          onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
+          onChange={(_e, data) => setQuery(String(data?.value ?? ''))}
           appearance="outline"
         />
 
@@ -124,7 +124,7 @@ export default function BlogFilters(props: {
           <div style={{ minWidth: 160 }}>
             <Select
               value={author ?? ''}
-              onChange={(e) => setAuthor((e.target as HTMLSelectElement).value || null)}
+              onChange={(_e, data) => setAuthor((data?.value as string) || null)}
               appearance="outline"
             >
               <Option value="">All authors</Option>
@@ -137,7 +137,7 @@ export default function BlogFilters(props: {
           <div style={{ minWidth: 160 }}>
             <Select
               value={category ?? ''}
-              onChange={(e) => setCategory((e.target as HTMLSelectElement).value || null)}
+              onChange={(_e, data) => setCategory((data?.value as string) || null)}
               appearance="outline"
             >
               <Option value="">All categories</Option>
@@ -148,7 +148,7 @@ export default function BlogFilters(props: {
           </div>
 
           <div style={{ minWidth: 160 }}>
-            <Select value={sort} onChange={(e) => setSort((e.target as any).value)} appearance="outline">
+            <Select value={sort} onChange={(_e, data) => setSort((data?.value as any) ?? 'newest')} appearance="outline">
               <Option value="newest">Newest</Option>
               <Option value="views">Most viewed</Option>
               <Option value="likes">Most liked</Option>
@@ -157,7 +157,7 @@ export default function BlogFilters(props: {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Checkbox label="Liked" checked={liked} onChange={(_e, data) => setLiked(!!data?.checked)} />
+            <Checkbox label="Liked" checked={liked} onChange={() => setLiked((s) => !s)} />
           </div>
 
           <div>
@@ -171,7 +171,7 @@ export default function BlogFilters(props: {
         <div className={styles.panel}>
           <Select
             value={author ?? ''}
-            onChange={(e) => setAuthor((e.target as HTMLSelectElement).value || null)}
+            onChange={(_e, data) => setAuthor((data?.value as string) || null)}
             appearance="outline"
           >
             <Option value="">All authors</Option>
@@ -179,13 +179,13 @@ export default function BlogFilters(props: {
               <Option key={a} value={a}>{a}</Option>
             ))}
           </Select>
-          <Select value={sort} onChange={(e) => setSort((e.target as any).value)} appearance="outline">
+          <Select value={sort} onChange={(_e, data) => setSort((data?.value as any) ?? 'newest')} appearance="outline">
             <Option value="newest">Newest</Option>
             <Option value="views">Most viewed</Option>
             <Option value="likes">Most liked</Option>
             <Option value="alpha">A → Z</Option>
           </Select>
-          <Checkbox label="Liked" checked={liked} onChange={(_e, data) => setLiked(!!data?.checked)} />
+          <Checkbox label="Liked" checked={liked} onChange={() => setLiked((s) => !s)} />
           <Button onClick={() => { setQuery(''); setAuthor(null); setSort('newest'); setExpanded(false); }} appearance="outline">Clear</Button>
         </div>
       )}
