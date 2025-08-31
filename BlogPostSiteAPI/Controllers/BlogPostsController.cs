@@ -85,6 +85,42 @@ namespace BlogPostSiteAPI.Controllers
                     var found = System.IO.Directory.GetFiles(post.ContentPath!, "index.mdx", SearchOption.AllDirectories).FirstOrDefault();
                     if (!string.IsNullOrEmpty(found) && System.IO.File.Exists(found)) indexPath = found;
                 }
+                // If we still don't have an indexPath, attempt to locate the post under the current configured content root.
+                // This helps when posts were uploaded to a different physical root (for example, you changed ContentStorage__RootPhysicalPath).
+                if (indexPath == null)
+                {
+                    try
+                    {
+                        // Common layout: {RootPhysicalPath}/posts/{slug}/index.mdx
+                        if (!string.IsNullOrWhiteSpace(_opts.RootPhysicalPath))
+                        {
+                            var candidateA = Path.Combine(_opts.RootPhysicalPath, "posts", slug, "index.mdx");
+                            if (System.IO.File.Exists(candidateA)) indexPath = candidateA;
+
+                            // Some deployments accidentally include an extra 'posts' folder (wwwroot/static/posts/posts/...).
+                            if (indexPath == null)
+                            {
+                                var candidateB = Path.Combine(_opts.RootPhysicalPath, "posts", "posts", slug, "index.mdx");
+                                if (System.IO.File.Exists(candidateB)) indexPath = candidateB;
+                            }
+
+                            // If still not found, try searching for a folder named after the slug under the configured root (cheap breadth-limited search).
+                            if (indexPath == null && System.IO.Directory.Exists(_opts.RootPhysicalPath))
+                            {
+                                var slugDirs = System.IO.Directory.GetDirectories(_opts.RootPhysicalPath, slug, SearchOption.AllDirectories);
+                                foreach (var d in slugDirs)
+                                {
+                                    var cand = Path.Combine(d, "index.mdx");
+                                    if (System.IO.File.Exists(cand)) { indexPath = cand; break; }
+                                }
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // ignore IO exceptions here and fall through to NotFound
+                    }
+                }
             }
             catch
             {
