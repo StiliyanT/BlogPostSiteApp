@@ -16,12 +16,14 @@ public class AdminBlogPostsController : ControllerBase
     private readonly IBlogPostsRepository _repo;
     private readonly IBlogContentStorage _storage;
     private readonly IAuthorsRepository _authorsRepo;
+    private readonly ICategoriesRepository _categoriesRepo;
 
-    public AdminBlogPostsController(IBlogPostsRepository repo, IBlogContentStorage storage, IAuthorsRepository authorsRepo)
+    public AdminBlogPostsController(IBlogPostsRepository repo, IBlogContentStorage storage, IAuthorsRepository authorsRepo, ICategoriesRepository categoriesRepo)
     {
         _repo = repo;
         _storage = storage;
         _authorsRepo = authorsRepo;
+        _categoriesRepo = categoriesRepo;
     }
 
     [HttpPost("upload")]
@@ -31,6 +33,7 @@ public class AdminBlogPostsController : ControllerBase
         IFormFile file,
         [FromForm] string? slug,
         [FromForm] Guid? authorId,
+        [FromForm] Guid? categoryId,
         CancellationToken ct)
     {
         if (file == null || file.Length == 0)
@@ -106,6 +109,16 @@ public class AdminBlogPostsController : ControllerBase
                 return BadRequest("author not found");
             }
             post.AuthorId = authorId;
+        }
+
+        if (categoryId != null && categoryId != Guid.Empty)
+        {
+            var foundCat = await _categoriesRepo.GetCategoryByIdAsync(categoryId.Value);
+            if (foundCat == null)
+            {
+                return BadRequest("category not found");
+            }
+            post.CategoryId = categoryId;
         }
 
         var created = await _repo.CreateBlogPostAsync(post);

@@ -28,6 +28,16 @@ namespace BlogPostSiteAPI.Repositories
                 }
             }
 
+            // If a CategoryId was provided, attach the Category navigation to avoid EF tracking issues
+            if (blogPost.CategoryId != null && blogPost.Category == null)
+            {
+                var category = await _dbContext.Categories.FirstOrDefaultAsync(c => c.Id == blogPost.CategoryId.Value);
+                if (category != null)
+                {
+                    blogPost.Category = category;
+                }
+            }
+
             _dbContext.BlogPosts.Add(blogPost);
             await _dbContext.SaveChangesAsync();
 

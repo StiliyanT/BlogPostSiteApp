@@ -50,7 +50,8 @@ namespace BlogPostSiteAPI.Repositories
         {
             if (string.IsNullOrWhiteSpace(name)) return false;
             var norm = name.Trim();
-            return await _dbContext.Categories.AnyAsync(c => c.Name == norm);
+            // Perform case-insensitive check in a way EF can translate
+            return await _dbContext.Categories.AnyAsync(c => c.Name.ToLower() == norm.ToLower());
         }
 
         public async Task<bool> DeleteCategoryAsync(Guid id)

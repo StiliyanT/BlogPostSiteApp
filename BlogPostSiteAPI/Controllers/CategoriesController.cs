@@ -23,7 +23,9 @@ namespace BlogPostSiteAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAllCategoriesAsync()
         {
-            return Ok(await _categoriesRepository.GetAllCategoriesAsync());
+            var list = (await _categoriesRepository.GetAllCategoriesAsync())
+                .Select(c => new Contracts.Categories.CategoryResponse(c.Id, c.Name));
+            return Ok(list);
         }
 
         // GET api/<CategoriesController>/5
@@ -31,15 +33,8 @@ namespace BlogPostSiteAPI.Controllers
         public async Task<IActionResult> GetCategoryByIdAsync(Guid id)
         {
             var category = await _categoriesRepository.GetCategoryByIdAsync(id);
-
-            if (category == null) 
-            { 
-                return NotFound("No entity with such Id."); 
-            } 
-            else
-            {
-                return Ok(category);
-            }
+            if (category == null) return NotFound("No entity with such Id.");
+            return Ok(new Contracts.Categories.CategoryResponse(category.Id, category.Name));
            
         }
 
@@ -61,8 +56,18 @@ namespace BlogPostSiteAPI.Controllers
                 Name = trimmed
             };
 
-            var newCategory = await _categoriesRepository.CreateCategoryAsync(category);
-            return CreatedAtAction(nameof(GetCategoryByIdAsync), new { id = newCategory.Id }, newCategory);
+            try
+            {
+                var newCategory = await _categoriesRepository.CreateCategoryAsync(category);
+                var resp = new Contracts.Categories.CategoryResponse(newCategory.Id, newCategory.Name);
+                return CreatedAtAction(nameof(GetCategoryByIdAsync), new { id = newCategory.Id }, resp);
+            }
+            catch (Exception ex)
+            {
+                // Log & return a sanitized error to avoid leaking internals
+                this.HttpContext?.RequestServices?.GetService<Microsoft.Extensions.Logging.ILogger<CategoriesController>>()?.LogError(ex, "Failed creating category");
+                return StatusCode(500, new { error = "Failed to create category" });
+            }
         }
 
         // PUT api/<CategoriesController>/5
