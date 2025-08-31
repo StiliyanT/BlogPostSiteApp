@@ -31,12 +31,32 @@ const useStyles = makeStyles({
     flexWrap: 'wrap',
   },
   search: {
-  flex: 1,
+    flex: 1,
+  },
+  // input style similar to Admin page for consistent look
+  input: {
+    backgroundColor: '#ffffff',
+    border: '1px solid #cbd5e1',
+    borderRadius: '8px',
+    padding: '10px 12px',
+    selectors: {
+      '&:where(:hover)': { ...shorthands.borderColor('#94a3b8') },
+      '&:where(:focus-within)': { ...shorthands.borderColor('#3b82f6'), outline: '2px solid #93c5fd', outlineOffset: '2px', boxShadow: '0 0 0 4px rgba(59,130,246,0.10)' },
+    },
   },
   controls: {
     display: 'flex',
     gap: '0.5rem',
     alignItems: 'center',
+    // subtle 'panel' look like admin
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    padding: '6px',
+    borderRadius: '10px',
+    width: '100%',
+    '@media (max-width: 640px)': {
+      padding: 0,
+      backgroundColor: 'transparent',
+    },
   },
   compactToggle: {
     display: 'none',
@@ -56,8 +76,8 @@ const useStyles = makeStyles({
     },
   },
   selectContainer: {
-  minWidth: '160px',
-  width: '220px',
+    minWidth: '140px',
+    width: '220px',
     '@media (max-width: 640px)': {
       width: '100%',
       minWidth: 'auto',
@@ -68,6 +88,11 @@ const useStyles = makeStyles({
     backgroundColor: '#ffffff',
     border: '1px solid #cbd5e1',
     borderRadius: '8px',
+  padding: '8px 10px',
+  minHeight: '40px',
+  display: 'flex',
+  alignItems: 'center',
+  zIndex: 10,
     '@media (prefers-color-scheme: dark)': { backgroundColor: '#171717', border: '1px solid #404040' },
     selectors: {
       '&:where(:hover)': { ...shorthands.borderColor('#94a3b8') },
@@ -79,6 +104,7 @@ const useStyles = makeStyles({
     border: '1px solid rgba(229,231,235,0.9)',
     borderRadius: '10px',
     boxShadow: '0 12px 24px rgba(0,0,0,0.12)',
+  zIndex: 9999,
     '@media (prefers-color-scheme: dark)': {
       backgroundColor: '#171717',
       border: '1px solid rgba(64,64,64,0.85)',
@@ -147,7 +173,7 @@ export default function BlogFilters(props: {
     <div className={styles.root} aria-label="Blog filters">
       <div className={styles.row}>
         <Input
-          className={styles.search}
+          className={`${styles.search} ${styles.input}`}
           placeholder="Search posts by title, summary or author…"
           value={query}
           onChange={(_e, data) => setQuery(String(data?.value ?? ''))}
@@ -164,8 +190,8 @@ export default function BlogFilters(props: {
           {/* desktop controls; on mobile these are shown when expanded */}
           <div className={styles.selectContainer}>
             <Dropdown
-              selectedOptions={author ? [author] : ['']}
-              onOptionSelect={(_e, data) => setAuthor(String(data.optionValue ?? null))}
+              selectedOptions={author ? [author] : []}
+              onOptionSelect={(_e, data) => setAuthor(data.optionValue ? String(data.optionValue) : null)}
               className={styles.dropdown}
               listbox={{ className: styles.dropdownListbox }}
             >
@@ -178,8 +204,8 @@ export default function BlogFilters(props: {
 
           <div className={styles.selectContainer}>
             <Dropdown
-              selectedOptions={category ? [category] : ['']}
-              onOptionSelect={(_e, data) => setCategory(String(data.optionValue ?? null))}
+              selectedOptions={category ? [category] : []}
+              onOptionSelect={(_e, data) => setCategory(data.optionValue ? String(data.optionValue) : null)}
               className={styles.dropdown}
               listbox={{ className: styles.dropdownListbox }}
             >
@@ -230,8 +256,8 @@ export default function BlogFilters(props: {
       {expanded && (
         <div className={styles.panel}>
           <Dropdown
-            selectedOptions={author ? [author] : ['']}
-            onOptionSelect={(_e, data) => setAuthor(String(data.optionValue ?? null))}
+            selectedOptions={author ? [author] : []}
+            onOptionSelect={(_e, data) => setAuthor(data.optionValue ? String(data.optionValue) : null)}
             className={styles.dropdown}
             listbox={{ className: styles.dropdownListbox }}
           >
