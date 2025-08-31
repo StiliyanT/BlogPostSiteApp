@@ -220,5 +220,39 @@ export async function createCategory(name: string, token: string): Promise<{ id:
     body: JSON.stringify({ name }),
   });
   if (!res.ok) throw new Error('Failed to create category');
-  try { return await res.json(); } catch { throw new Error('Invalid JSON from create category'); }
+
+  // Try to parse JSON body; some servers may return 201 Created with empty body.
+  try {
+    const txt = await res.text();
+    if (txt && txt.trim().length > 0) {
+      try { return JSON.parse(txt); } catch { /* fallthrough to fallback */ }
+    }
+  } catch {
+    // ignore and proceed to fallback
+  }
+
+  // If no JSON body, try to resolve from Location header
+  const loc = res.headers.get('Location') || res.headers.get('location');
+  if (loc) {
+    try {
+      const r2 = await fetch(loc, { headers: { Authorization: `Bearer ${token}` } });
+      if (r2.ok) {
+        const txt2 = await r2.text();
+        if (txt2 && txt2.trim().length > 0) {
+          try { return JSON.parse(txt2); } catch { /* fallthrough */ }
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Fallback: refresh full categories list and find by name (case-insensitive)
+  try {
+    const all = await getCategories();
+    const found = all.find(c => c.name.toLowerCase() === name.trim().toLowerCase());
+    if (found) return found;
+  } catch {
+    // ignore
+  }
+
+  throw new Error('Invalid JSON from create category');
 }
