@@ -9,7 +9,10 @@ namespace BlogPostSiteAPI.Repositories
 
         Task<Category> GetCategoryByIdAsync(Guid id);
 
-        Task<Category> CreateCategoryAsync(Category category);
+    Task<Category> CreateCategoryAsync(Category category);
+
+    // Returns true if a category with the given name (case-insensitive, trimmed) already exists
+    Task<bool> CategoryNameExistsAsync(string name);
 
         Task<bool> DeleteCategoryAsync(Guid id);
 

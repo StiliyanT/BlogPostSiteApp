@@ -45,9 +45,22 @@ namespace BlogPostSiteAPI.Controllers
 
         // POST api/<CategoriesController>
         [HttpPost]
-        public async Task<IActionResult> CreateCategoryAsync([FromBody] Category category)
+        public async Task<IActionResult> CreateCategoryAsync([FromBody] Contracts.Categories.CreateCategoryRequest req)
         {
-            if (category == null) return BadRequest("Missing category body");
+            if (req == null || string.IsNullOrWhiteSpace(req.Name)) return BadRequest("Missing or empty category name");
+
+            var trimmed = req.Name.Trim();
+
+            // Unique (case-sensitive by DB collation). If you want case-insensitive, normalize here.
+            var exists = await _categoriesRepository.CategoryNameExistsAsync(trimmed);
+            if (exists) return Conflict(new { error = "Category with the same name already exists." });
+
+            var category = new Category
+            {
+                Id = Guid.NewGuid(),
+                Name = trimmed
+            };
+
             var newCategory = await _categoriesRepository.CreateCategoryAsync(category);
             return CreatedAtAction(nameof(GetCategoryByIdAsync), new { id = newCategory.Id }, newCategory);
         }

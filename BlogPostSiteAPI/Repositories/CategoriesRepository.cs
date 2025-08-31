@@ -46,6 +46,13 @@ namespace BlogPostSiteAPI.Repositories
             return category;
         }
 
+        public async Task<bool> CategoryNameExistsAsync(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            var norm = name.Trim();
+            return await _dbContext.Categories.AnyAsync(c => c.Name == norm);
+        }
+
         public async Task<bool> DeleteCategoryAsync(Guid id)
         {
 
