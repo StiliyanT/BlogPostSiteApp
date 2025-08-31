@@ -138,19 +138,34 @@ const SpotlightCard: FC<SpotlightCardProps> = ({ name, image, slug, author, view
             const img = e.currentTarget as HTMLImageElement;
             // Keep track of attempted fallbacks to avoid loops
             const tried = (img.dataset.triedFallbacks || '').split(',').filter(Boolean);
-            const candidates = ['hero.jpg', 'hero.png', 'image.png', 'image.jpg'];
-            // If the current src already matches one of the candidates, mark it tried
+            const files = ['hero.jpg', 'hero.png', 'image.png', 'image.jpg'];
+            const bases: string[] = [];
+            if (typeof slug === 'string' && slug) {
+              bases.push(`/static/posts/${slug}/assets`);
+              bases.push(`/static/posts/posts/${slug}/assets`);
+            }
+
+            // If the current src already has a filename, mark it tried
             try {
               const currentName = img.src.split('/').pop() || '';
               if (currentName && !tried.includes(currentName)) tried.push(currentName);
             } catch { /* ignore parsing errors */ }
 
-            // Find next candidate we haven't tried yet
-            const next = candidates.find(c => !tried.includes(c));
-            if (next && typeof slug === 'string' && slug) {
-              tried.push(next);
+            // Build candidate paths and pick the next one we haven't tried
+            let picked: string | undefined;
+            for (const b of bases) {
+              for (const f of files) {
+                const candidate = `${b}/${f}`;
+                if (!tried.includes(candidate) && picked === undefined) {
+                  picked = candidate;
+                }
+              }
+            }
+
+            if (picked) {
+              tried.push(picked);
               img.dataset.triedFallbacks = tried.join(',');
-              img.src = `/static/posts/posts/${slug}/assets/${next}`;
+              img.src = picked;
               // eslint-disable-next-line no-console
               console.warn('[SpotlightCard] image failed, trying fallback static path', img.src);
               return;
@@ -158,7 +173,7 @@ const SpotlightCard: FC<SpotlightCardProps> = ({ name, image, slug, author, view
 
             // final fallback
             img.dataset.triedFallbacks = tried.join(',');
-            img.src = '/placeholder.jpg';
+            img.src = '/static/placeholder.jpg';
           }}
         />
         <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(30,30,30,0.35)" }} />

@@ -167,11 +167,13 @@ import { useEffect, useState, useRef } from 'react';
         if (!slug) { setImgSrc(null); return; }
         const candidates: string[] = [];
         if (hero) candidates.push(toAbsolute(hero));
-        const assetBase = `/static/posts/posts/${slug}/assets`;
-        candidates.push(`${assetBase}/hero.jpg`);
-        candidates.push(`${assetBase}/hero.png`);
-        candidates.push(`${assetBase}/image.png`);
-        candidates.push(`${assetBase}/image.jpg`);
+        const bases = [`/static/posts/${slug}/assets`, `/static/posts/posts/${slug}/assets`];
+        for (const b of bases) {
+          candidates.push(`${b}/hero.jpg`);
+          candidates.push(`${b}/hero.png`);
+          candidates.push(`${b}/image.png`);
+          candidates.push(`${b}/image.jpg`);
+        }
         candidates.push('/static/placeholder.jpg');
         setImgSrc(candidates[0] ?? null);
         // store candidates on the ref so onError can advance through them
