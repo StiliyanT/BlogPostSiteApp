@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 interface SpotlightCardProps {
   name: string;
   image: string;
+  slug?: string;
   author: string;
   views: number;
   likes: number;
@@ -120,7 +121,7 @@ const useStyles = makeStyles({
   },
 });
 
-const SpotlightCard: FC<SpotlightCardProps> = ({ name, image, author, views, likes, createdOn, to, isNew, onClick }) => {
+const SpotlightCard: FC<SpotlightCardProps> = ({ name, image, slug, author, views, likes, createdOn, to, isNew, onClick }) => {
   const styles = useStyles();
   const dateLabel = createdOn ? new Date(createdOn).toLocaleDateString() : null;
 
@@ -133,6 +134,24 @@ const SpotlightCard: FC<SpotlightCardProps> = ({ name, image, author, views, lik
           loading="lazy"
           decoding="async"
           style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          onError={(e) => {
+            const img = e.currentTarget as HTMLImageElement;
+            // avoid infinite loop
+            if (img.dataset.triedFallback) {
+              img.src = '/placeholder.jpg';
+              return;
+            }
+            img.dataset.triedFallback = '1';
+            if (typeof (slug) === 'string' && slug) {
+              // Try the conventional static path used by the API: /static/posts/posts/{slug}/assets/hero.jpg
+              img.src = `/static/posts/posts/${slug}/assets/hero.jpg`;
+              // still allow the browser to attempt to load it; if that fails, onError will run again and then use placeholder
+              // eslint-disable-next-line no-console
+              console.warn('[SpotlightCard] image failed, trying fallback static path', img.src);
+              return;
+            }
+            img.src = '/placeholder.jpg';
+          }}
         />
         <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(30,30,30,0.35)" }} />
         <span className={styles.author} style={{ position: "absolute", top: 12, left: 16, color: "#fff", textShadow: "0 1px 4px #000", zIndex: 1 }}>{author}</span>

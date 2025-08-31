@@ -399,6 +399,7 @@ export default function Blogs() {
                   key={post.slug}
                   name={post.title || 'Untitled'}
                   image={typeof post.image === 'string' ? post.image : '/placeholder.jpg'}
+                  slug={post.slug}
                   author={post.author || 'Unknown'}
                   views={typeof post.views === 'number' ? post.views : 0}
                   likes={typeof post.likes === 'number' ? post.likes : 0}
