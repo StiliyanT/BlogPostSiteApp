@@ -5,6 +5,7 @@ import { makeStyles, Body1, Title2, Subtitle1, Button, tokens } from "@fluentui/
 const useStyles = makeStyles({
   root: {
     width: '100vw',
+    marginTop: '24px',
     minHeight: '100vh',
     display: 'flex',
     alignItems: 'flex-start',

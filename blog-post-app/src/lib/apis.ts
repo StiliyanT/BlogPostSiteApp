@@ -102,16 +102,25 @@ export async function getLikedPosts(token?: string | null): Promise<BlogPostList
 export function trackPostView(slug: string): void {
   const url = `${API_BASE}/api/blogposts/slug/${encodeURIComponent(slug)}/view`;
   try {
+    // Diagnostic: log attempt to send view
+    // eslint-disable-next-line no-console
+    console.debug('[trackPostView] sending view', { slug, url, sendBeacon: !!navigator.sendBeacon });
     if (navigator.sendBeacon) {
       const blob = new Blob([''], { type: 'text/plain' });
-      navigator.sendBeacon(url, blob);
+      const ok = navigator.sendBeacon(url, blob);
+      // eslint-disable-next-line no-console
+      console.debug('[trackPostView] sendBeacon queued?', { ok });
       return;
     }
-  } catch {
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.debug('[trackPostView] sendBeacon error', err);
     // ignore and fall back to fetch
   }
   // Fallback (non-blocking, tries to persist on unload)
   try {
+    // eslint-disable-next-line no-console
+    console.debug('[trackPostView] falling back to fetch', { url });
     void fetch(url, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'text/plain' }, body: '' });
   } catch {
     // swallow
@@ -131,16 +140,30 @@ export function trackClickView(slug: string, windowMs = 6 * 60 * 60 * 1000): voi
     try { localStorage.setItem(key, String(now)); } catch {}
     const url = `${API_BASE}/api/blogposts/slug/${encodeURIComponent(slug)}/view`;
     try {
+      // Diagnostic: log attempt to send click view
+      // eslint-disable-next-line no-console
+      console.debug('[trackClickView] attempting to send view', { slug, url, sendBeacon: !!navigator.sendBeacon });
       if (navigator.sendBeacon) {
         const blob = new Blob([''], { type: 'text/plain' });
-        navigator.sendBeacon(url, blob);
+        const ok = navigator.sendBeacon(url, blob);
+        // eslint-disable-next-line no-console
+        console.debug('[trackClickView] sendBeacon queued?', { ok });
         return;
       }
-    } catch {
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.debug('[trackClickView] sendBeacon error', err);
       // ignore
     }
     // fallback to non-blocking fetch with keepalive where available
-    try { void fetch(url, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'text/plain' }, body: '' }); } catch {}
+    try {
+      // eslint-disable-next-line no-console
+      console.debug('[trackClickView] falling back to fetch', { url });
+      void fetch(url, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'text/plain' }, body: '' });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.debug('[trackClickView] fetch error', err);
+    }
   } catch {
     // swallow any errors — tracking must not break navigation
   }

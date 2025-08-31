@@ -289,10 +289,14 @@ namespace BlogPostSiteAPI.Controllers
         [HttpPost("slug/{slug}/view")]
         public async Task<IActionResult> TrackViewAsync(string slug)
         {
-            var post = await _repo.GetBySlugAsync(slug);
+            // Use a tracked entity so EF Core will persist modifications
+            var post = await _repo.GetBySlugForUpdateAsync(slug);
             if (post == null) return NotFound();
 
-            // Naive increment guarded by short-circuit; replace with buffering service when ready.
+            // Diagnostic log to help debug view-tracking during development
+            try { Console.WriteLine($"[BlogPostsController] TrackViewAsync called for slug={slug}"); } catch { }
+
+            // Naive increment; replace with buffered approach later if needed
             post.Views += 1;
             post.ModifiedOn = DateTime.UtcNow;
             await HttpContext.RequestServices.GetRequiredService<BlogDbContext>().SaveChangesAsync();

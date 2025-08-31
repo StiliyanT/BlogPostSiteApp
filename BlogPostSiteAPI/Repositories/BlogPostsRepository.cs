@@ -75,6 +75,13 @@ namespace BlogPostSiteAPI.Repositories
                 .Include(p => p.Category)
                 .FirstOrDefaultAsync(p => p.Slug == slug);
 
+        // Return a tracked entity for update operations (no AsNoTracking)
+        public async Task<BlogPost?> GetBySlugForUpdateAsync(string slug)
+            => await _dbContext.BlogPosts
+                .Include(p => p.Author)
+                .Include(p => p.Category)
+                .FirstOrDefaultAsync(p => p.Slug == slug);
+
         public async Task<bool> SlugExistsAsync(string slug)
         => await _dbContext.BlogPosts.AnyAsync(p => p.Slug == slug);
 

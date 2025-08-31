@@ -14,6 +14,9 @@ namespace BlogPostSiteAPI.Repositories
 
         Task<BlogPost?> GetBySlugAsync(string slug);
 
+    // Retrieve a blog post entity tracked by the DbContext for updates
+    Task<BlogPost?> GetBySlugForUpdateAsync(string slug);
+
         Task<bool> SlugExistsAsync(string slug);
 
         Task<int> UpdateBlogPostLikesAsync(BlogPost blogPost);
