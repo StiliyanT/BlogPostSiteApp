@@ -7,6 +7,7 @@ export type Filters = {
   category?: string | null | undefined;
   liked?: boolean;
   sort?: 'newest' | 'views' | 'likes' | 'alpha';
+  sortDir?: 'asc' | 'desc';
 };
 
 const useStyles = makeStyles({
@@ -77,6 +78,7 @@ export default function BlogFilters(props: {
   const [author, setAuthor] = useState<string | null>(value?.author ?? null);
   const [category, setCategory] = useState<string | null>(value?.category ?? null);
   const [sort, setSort] = useState<Filters['sort']>(value?.sort ?? 'newest');
+  const [sortDir, setSortDir] = useState<Filters['sortDir']>(value?.sortDir ?? 'desc');
   const [liked, setLiked] = useState<boolean>(value?.liked ?? false);
   const [expanded, setExpanded] = useState<boolean>(false);
 
@@ -89,13 +91,13 @@ export default function BlogFilters(props: {
   }, [value]);
 
   useEffect(() => {
-    onChange?.({ query: query.trim(), author: author || undefined, category: category || undefined, liked, sort });
+    onChange?.({ query: query.trim(), author: author || undefined, category: category || undefined, liked, sort, sortDir });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, author, category, sort]);
+  }, [query, author, category, sort, sortDir]);
 
   useEffect(() => {
     // ensure onChange runs when liked toggles
-    onChange?.({ query: query.trim(), author: author || undefined, category: category || undefined, liked, sort });
+  onChange?.({ query: query.trim(), author: author || undefined, category: category || undefined, liked, sort, sortDir });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liked]);
 
@@ -165,6 +167,13 @@ export default function BlogFilters(props: {
             </Select>
           </div>
 
+          <div style={{ width: 96 }}>
+            <Select value={sortDir} onChange={(_e, data) => setSortDir((data?.value as any) ?? 'desc')} appearance="outline">
+              <Option value="desc">Desc</Option>
+              <Option value="asc">Asc</Option>
+            </Select>
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Checkbox label="Liked" checked={liked} onChange={() => setLiked((s) => !s)} />
           </div>
@@ -193,6 +202,10 @@ export default function BlogFilters(props: {
             <Option value="views">Most viewed</Option>
             <Option value="likes">Most liked</Option>
             <Option value="alpha">A → Z</Option>
+          </Select>
+          <Select value={sortDir} onChange={(_e, data) => setSortDir((data?.value as any) ?? 'desc')} appearance="outline">
+            <Option value="desc">Desc</Option>
+            <Option value="asc">Asc</Option>
           </Select>
           <Checkbox label="Liked" checked={liked} onChange={() => setLiked((s) => !s)} />
           <Button onClick={() => { setQuery(''); setAuthor(null); setSort('newest'); setExpanded(false); }} appearance="outline">Clear</Button>

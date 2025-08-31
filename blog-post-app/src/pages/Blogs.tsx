@@ -274,7 +274,8 @@ export default function Blogs() {
         setLoading(true);
         setError(null);
         let list = await getPosts();
-        // If the user requested liked posts, fetch those instead (requires auth token)
+
+        // If filters request liked posts, fetch those instead (requires auth token)
         if (filters.liked) {
           try {
             list = await getLikedPosts(auth.token ?? null);
@@ -287,18 +288,15 @@ export default function Blogs() {
             }
           }
         }
-        console.log('Loaded posts list', list);
-  const detailed = await Promise.all(
+
+        const detailed = await Promise.all(
           list.map(async (p: BlogPostListItem): Promise<SpotlightItem> => {
             try {
               const detail = await getPostBySlug(p.slug);
-              console.log('Loaded post detail', p.slug, detail);
               return {
                 slug: p.slug,
                 title: p.title,
                 image: normalizeHeroUrl((detail as any).heroUrl),
-                // detail.author used to be a string; after API changes it's an object { id, name, slug, avatar }
-                // normalize to the author's display name so downstream sorting/filtering (which expects strings) works
                 author: (detail as any).author?.name ?? (typeof (detail as any).author === 'string' ? (detail as any).author : 'Unknown'),
                 category: (detail as any).category?.name ?? undefined,
                 views: (detail as any).views ?? 0,
@@ -311,7 +309,8 @@ export default function Blogs() {
             }
           })
         );
-  if (!cancelled) setItems(detailed);
+
+        if (!cancelled) setItems(detailed);
       } catch (e: any) {
         console.error('Failed to load posts', e);
         if (!cancelled) setError(e?.message || 'Failed to load posts');
@@ -322,7 +321,7 @@ export default function Blogs() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [filters, auth.token]);
 
   // Reset to first page when the data set changes
   useEffect(() => {
@@ -348,12 +347,13 @@ export default function Blogs() {
     }
     return true;
   }).sort((a, b) => {
+    const dir = (filters.sortDir ?? 'desc') === 'asc' ? 1 : -1;
     switch (filters.sort) {
-      case 'views': return (b.views || 0) - (a.views || 0);
-      case 'likes': return (b.likes || 0) - (a.likes || 0);
-      case 'alpha': return (a.title || '').localeCompare(b.title || '');
+      case 'views': return dir * (((b.views || 0) - (a.views || 0)));
+      case 'likes': return dir * (((b.likes || 0) - (a.likes || 0)));
+      case 'alpha': return dir * ((a.title || '').localeCompare(b.title || ''));
       default: // newest
-        return new Date(b.createdOn || '').getTime() - new Date(a.createdOn || '').getTime();
+        return dir * (new Date(b.createdOn || '').getTime() - new Date(a.createdOn || '').getTime());
     }
   });
 
