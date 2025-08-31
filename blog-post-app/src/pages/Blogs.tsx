@@ -289,7 +289,7 @@ export default function Blogs() {
           }
         }
 
-        const detailed = await Promise.all(
+  const detailed = await Promise.all(
           list.map(async (p: BlogPostListItem): Promise<SpotlightItem> => {
             try {
               const detail = await getPostBySlug(p.slug);
@@ -299,8 +299,8 @@ export default function Blogs() {
                 image: normalizeHeroUrl((detail as any).heroUrl),
                 author: (detail as any).author?.name ?? (typeof (detail as any).author === 'string' ? (detail as any).author : 'Unknown'),
                 category: (detail as any).category?.name ?? undefined,
-                views: (detail as any).views ?? 0,
-                likes: (detail as any).likes ?? 0,
+    views: (detail as any).views ?? 0,
+    likes: (detail as any).likes ?? (p.likes ?? 0),
                 createdOn: p.createdOn,
               };
             } catch (e) {
@@ -310,7 +310,7 @@ export default function Blogs() {
           })
         );
 
-        if (!cancelled) setItems(detailed);
+  if (!cancelled) setItems(detailed);
       } catch (e: any) {
         console.error('Failed to load posts', e);
         if (!cancelled) setError(e?.message || 'Failed to load posts');
@@ -322,6 +322,17 @@ export default function Blogs() {
       cancelled = true;
     };
   }, [filters, auth.token]);
+
+  // Update local items when a post likes update is dispatched
+  useEffect(() => {
+    function onLikesUpdated(e: any) {
+      const { slug, likes } = e.detail || {};
+      if (!slug) return;
+      setItems((curr) => curr.map(it => it.slug === slug ? { ...it, likes: likes ?? it.likes } : it));
+    }
+    window.addEventListener('post:likes-updated', onLikesUpdated as any);
+    return () => window.removeEventListener('post:likes-updated', onLikesUpdated as any);
+  }, []);
 
   // Reset to first page when the data set changes
   useEffect(() => {

@@ -162,7 +162,7 @@ function App() {
                 // normalize author to a display string (API may return object or string)
                 author: (detail as any).author?.name ?? (typeof (detail as any).author === 'string' ? (detail as any).author : 'Unknown'),
                 views: (detail as any).views ?? 0,
-                likes: (detail as any).likes ?? 0,
+                likes: (detail as any).likes ?? (p as any).likes ?? 0,
                 createdOn: p.createdOn,
               };
             } catch {
@@ -180,6 +180,16 @@ function App() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    function onLikesUpdated(e: any) {
+      const { slug, likes } = e.detail || {};
+      if (!slug) return;
+      setSpotlightItems((curr) => curr.map(it => it.slug === slug ? { ...it, likes: likes ?? it.likes } : it));
+    }
+    window.addEventListener('post:likes-updated', onLikesUpdated as any);
+    return () => window.removeEventListener('post:likes-updated', onLikesUpdated as any);
   }, []);
 
   return (

@@ -194,19 +194,31 @@ import { useEffect, useState } from 'react';
                 }
                 setLikePending(true);
                 try {
-                    const newLikes = await toggleLike(slug, token);
-                    if (typeof newLikes === 'number') {
-                      setPost((curr) => (curr ? { ...curr, likes: newLikes } : curr));
-                    } else {
-                      // optimistic fallback: increment/decrement locally so UI reflects change
-                      setPost((curr) => {
-                        if (!curr) return curr;
-                        const prev = (curr as any).likes ?? 0;
-                        const next = isLiked ? Math.max(0, prev - 1) : prev + 1;
-                        return { ...curr, likes: next } as any;
-                      });
-                    }
-                    setIsLiked(prev => !prev);
+                  const newLikes = await toggleLike(slug, token);
+                  // compute updatedLikes to use for UI update and to broadcast
+                  let updatedLikes: number | null = null;
+                  if (typeof newLikes === 'number') {
+                    updatedLikes = newLikes;
+                    setPost((curr) => (curr ? { ...curr, likes: newLikes } : curr));
+                  } else {
+                    // optimistic fallback: increment/decrement locally so UI reflects change
+                    setPost((curr) => {
+                      if (!curr) return curr;
+                      const prev = (curr as any).likes ?? 0;
+                      const next = isLiked ? Math.max(0, prev - 1) : prev + 1;
+                      updatedLikes = next;
+                      return { ...curr, likes: next } as any;
+                    });
+                  }
+                  setIsLiked(prev => !prev);
+
+                  // Broadcast the updated likes so other components (Spotlight, Blogs) can update their local state
+                  try {
+                    const ev = new CustomEvent('post:likes-updated', { detail: { slug, likes: updatedLikes } });
+                    window.dispatchEvent(ev);
+                  } catch {
+                    // ignore
+                  }
                 } catch (e: any) {
                   if (e?.message === 'auth-required') {
                     window.location.href = '/login';
