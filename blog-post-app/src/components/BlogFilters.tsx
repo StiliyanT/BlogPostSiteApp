@@ -45,24 +45,32 @@ const useStyles = makeStyles({
     },
   },
   checkbox: {
-    display: 'flex',
-    alignItems: 'center',
-    color: 'inherit',
-    marginLeft: '6px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.5rem',
+  color: 'inherit',
+  marginLeft: '6px',
+  fontSize: '0.95rem',
+  lineHeight: '1',
+  whiteSpace: 'nowrap',
+  flexWrap: 'nowrap',
   },
   controls: {
-  display: 'flex',
-  gap: '1rem',
+    display: 'flex',
+    gap: '1rem',
     alignItems: 'center',
     // subtle 'panel' look like admin
     backgroundColor: 'rgba(255,255,255,0.02)',
     padding: '6px',
     borderRadius: '10px',
     width: '100%',
+    // hide desktop controls on small screens; mobile uses the panel when expanded
     '@media (max-width: 640px)': {
-      padding: 0,
-      backgroundColor: 'transparent',
+      display: 'none',
     },
+  },
+  controlsExpanded: {
+    display: 'flex',
   },
   compactToggle: {
     display: 'none',
@@ -80,14 +88,53 @@ const useStyles = makeStyles({
       flexDirection: 'column',
       alignItems: 'stretch',
     },
+    // hide the mobile panel on larger screens
+    '@media (min-width: 641px)': {
+      display: 'none',
+    },
   },
   selectContainer: {
     minWidth: '140px',
-  width: '220px',
+    width: '220px',
+    paddingRight: '20px',
+    display: 'flex',
+    alignItems: 'center',
+  position: 'relative',
     '@media (max-width: 640px)': {
       width: '100%',
       minWidth: 'auto',
+      paddingRight: 0,
+      flex: '1 1 auto',
     },
+  },
+  // overlay fallback removed — Dropdown `value` now supplies the visible label
+  sortButtonContainer: {
+    width: '48px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sortButtonContent: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+  },
+  sortLabel: {
+    fontSize: '12px',
+    fontWeight: 600,
+    lineHeight: 1,
+  },
+  clearButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '6px',
+    minWidth: '40px',
+    height: '36px',
+  },
+  clearIcon: {
+    width: '16px',
+    height: '16px',
   },
   // Dropdown styles mimic Admin panel to ensure listbox background and shadows are visible on glass cards
   dropdown: {
@@ -104,6 +151,8 @@ const useStyles = makeStyles({
     selectors: {
       '&:where(:hover)': { ...shorthands.borderColor('#94a3b8') },
       '&:where(:focus-within)': { ...shorthands.borderColor('#3b82f6'), outline: '2px solid #93c5fd', outlineOffset: '2px', boxShadow: '0 0 0 4px rgba(59,130,246,0.20)' },
+  '& .fui-Dropdown-toggle': { minHeight: '40px' },
+  '@media (max-width: 640px)': { padding: '10px', minHeight: '44px' },
     },
   },
   dropdownListbox: {
@@ -138,31 +187,37 @@ export default function BlogFilters(props: {
   const styles = useStyles();
 
   const [query, setQuery] = useState(value?.query ?? '');
-  const [author, setAuthor] = useState<string>(value?.author ?? '');
-  const [category, setCategory] = useState<string>(value?.category ?? '');
+  // internal sentinel values (non-empty) so the Dropdown toggle always shows a label
+  const ALL_AUTHOR = 'ALL_AUTHORS';
+  const ALL_CATEGORY = 'ALL_CATEGORIES';
+
+  const [author, setAuthor] = useState<string>(value?.author ?? ALL_AUTHOR);
+  const [category, setCategory] = useState<string>(value?.category ?? ALL_CATEGORY);
   const [sort, setSort] = useState<Filters['sort']>(value?.sort ?? 'newest');
   const [sortDir, setSortDir] = useState<Filters['sortDir']>(value?.sortDir ?? 'asc');
   const [liked, setLiked] = useState<boolean>(value?.liked ?? false);
   const [expanded, setExpanded] = useState<boolean>(false);
 
+  // initialize internal state from value once on mount; keep dropdowns independent afterwards
   useEffect(() => {
-  setQuery(value?.query ?? '');
-  setAuthor(value?.author ?? '');
-  setCategory(value?.category ?? '');
-  setLiked(value?.liked ?? false);
-  setSort(value?.sort ?? 'newest');
-  }, [value]);
+    setQuery(value?.query ?? '');
+  setAuthor(value?.author ?? ALL_AUTHOR);
+  setCategory(value?.category ?? ALL_CATEGORY);
+    setLiked(value?.liked ?? false);
+    setSort(value?.sort ?? 'newest');
+  setSortDir(value?.sortDir ?? 'asc');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    onChange?.({ query: query.trim(), author: author || undefined, category: category || undefined, liked, sort, sortDir });
+    // map sentinel values back to undefined so parent sees 'no filter'
+    const emitAuthor = author && author !== ALL_AUTHOR ? author : undefined;
+    const emitCategory = category && category !== ALL_CATEGORY ? category : undefined;
+    onChange?.({ query: query.trim(), author: emitAuthor, category: emitCategory, liked, sort, sortDir });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, author, category, sort, sortDir]);
+  }, [query, author, category, liked, sort, sortDir]);
 
-  useEffect(() => {
-    // ensure onChange runs when liked toggles
-  onChange?.({ query: query.trim(), author: author || undefined, category: category || undefined, liked, sort, sortDir });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liked]);
+  // when liked changes, the main effect (below) already emits the updated filters; no separate effect needed
 
   const authorOptions = useMemo(() => {
     const unique = Array.from(new Set(authors.filter(Boolean)));
@@ -175,6 +230,22 @@ export default function BlogFilters(props: {
     unique.sort((a, b) => a.localeCompare(b));
     return unique;
   }, [props.categories]);
+
+  // ensure the selected author stays valid when the list of authors changes
+  useEffect(() => {
+    if (author && author !== ALL_AUTHOR && !authorOptions.includes(author)) {
+      setAuthor(ALL_AUTHOR);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authorOptions]);
+
+  // ensure the selected category stays valid when the list of categories changes
+  useEffect(() => {
+    if (category && category !== ALL_CATEGORY && !categoryOptions.includes(category)) {
+      setCategory(ALL_CATEGORY);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryOptions]);
 
   return (
     <div className={styles.root} aria-label="Blog filters">
@@ -193,16 +264,17 @@ export default function BlogFilters(props: {
           </Button>
         </div>
 
-        <div className={styles.controls} style={{ display: expanded ? 'flex' : undefined }}>
+  <div className={`${styles.controls} ${expanded ? styles.controlsExpanded : ''}`}>
           {/* desktop controls; on mobile these are shown when expanded */}
           <div className={styles.selectContainer}>
             <Dropdown
-              selectedOptions={[author ?? '']}
-              onOptionSelect={(_e, data) => setAuthor(data.optionValue ? String(data.optionValue) : '')}
+              selectedOptions={[author ?? ALL_AUTHOR]}
+              value={author === ALL_AUTHOR ? 'All authors' : (authorOptions.find(a => a === author) ?? author)}
+              onOptionSelect={(_e, data) => setAuthor(String(data.optionValue ?? ALL_AUTHOR))}
               className={styles.dropdown}
               listbox={{ className: styles.dropdownListbox }}
             >
-              <Option value=''>All authors</Option>
+              <Option value={ALL_AUTHOR}>All authors</Option>
               {authorOptions.map((a) => (
                 <Option key={a} value={a}>{a}</Option>
               ))}
@@ -211,12 +283,13 @@ export default function BlogFilters(props: {
 
           <div className={styles.selectContainer}>
             <Dropdown
-              selectedOptions={[category ?? '']}
-              onOptionSelect={(_e, data) => setCategory(data.optionValue ? String(data.optionValue) : '')}
+              selectedOptions={[category ?? ALL_CATEGORY]}
+              value={category === ALL_CATEGORY ? 'All categories' : (categoryOptions.find(c => c === category) ?? category)}
+              onOptionSelect={(_e, data) => setCategory(String(data.optionValue ?? ALL_CATEGORY))}
               className={styles.dropdown}
               listbox={{ className: styles.dropdownListbox }}
             >
-              <Option value=''>All categories</Option>
+              <Option value={ALL_CATEGORY}>All categories</Option>
               {categoryOptions.map((c) => (
                 <Option key={c} value={c}>{c}</Option>
               ))}
@@ -226,6 +299,9 @@ export default function BlogFilters(props: {
           <div className={styles.selectContainer}>
             <Dropdown
               selectedOptions={[String(sort ?? 'newest')]}
+              value={
+                sort === 'newest' ? 'Newest' : sort === 'views' ? 'Most viewed' : sort === 'likes' ? 'Most liked' : 'A → Z'
+              }
               onOptionSelect={(_e, data) => setSort(String(data.optionValue ?? 'newest') as any)}
               className={styles.dropdown}
               listbox={{ className: styles.dropdownListbox }}
@@ -233,22 +309,42 @@ export default function BlogFilters(props: {
               <Option value="newest">Newest</Option>
               <Option value="views">Most viewed</Option>
               <Option value="likes">Most liked</Option>
-              <Option value="alpha">A → Z</Option>
+              {/* A → Z is provided via the A - Z button; removed from Dropdown */}
             </Dropdown>
           </div>
 
-          <div style={{ width: 96 }}>
-            <Button appearance="outline" onClick={() => setSortDir((s) => (s === 'asc' ? 'desc' : 'asc'))}>
-              {sortDir === 'asc' ? 'Asc' : 'Desc'}
+          <div className={styles.sortButtonContainer}>
+            <Button
+              appearance="outline"
+              onClick={() => { setSort('alpha'); setSortDir((s) => (s === 'asc' ? 'desc' : 'asc')); }}
+              aria-label={sortDir === 'asc' ? 'Sort descending' : 'Sort ascending'}
+              title={sortDir === 'asc' ? 'Sort descending' : 'Sort ascending'}
+            >
+                <span className={styles.sortButtonContent}>
+                  {sortDir === 'asc' ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                      <path d="M6 14L12 8L18 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                      <path d="M6 10L12 16L18 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+          <span className={styles.sortLabel}>A - Z</span>
+        </span>
             </Button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Checkbox className={styles.checkbox} label="Liked" checked={liked} onChange={() => setLiked((s) => !s)} />
+            <Checkbox className={styles.checkbox} label="Liked by me" checked={liked} onChange={() => setLiked((s) => !s)} />
           </div>
 
           <div>
-            <Button onClick={() => { setQuery(''); setAuthor(''); setSort('newest'); setSortDir('asc'); }} appearance="outline">Clear</Button>
+            <Button className={styles.clearButton} onClick={() => { setQuery(''); setAuthor(ALL_AUTHOR); setCategory(ALL_CATEGORY); setSort('newest'); setSortDir('asc'); }} appearance="outline" aria-label="Clear filters" title="Clear filters">
+              <svg className={styles.clearIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Button>
           </div>
         </div>
       </div>
@@ -257,18 +353,22 @@ export default function BlogFilters(props: {
       {expanded && (
         <div className={styles.panel}>
           <Dropdown
-            selectedOptions={[author ?? '']}
-            onOptionSelect={(_e, data) => setAuthor(data.optionValue ? String(data.optionValue) : '')}
+            selectedOptions={[author]}
+            value={author === ALL_AUTHOR ? 'All authors' : (authorOptions.find(a => a === author) ?? author)}
+            onOptionSelect={(_e, data) => setAuthor(String(data.optionValue ?? ALL_AUTHOR))}
             className={styles.dropdown}
             listbox={{ className: styles.dropdownListbox }}
           >
-            <Option value="">All authors</Option>
+            <Option value={ALL_AUTHOR}>All authors</Option>
             {authorOptions.map((a) => (
               <Option key={a} value={a}>{a}</Option>
             ))}
           </Dropdown>
           <Dropdown
             selectedOptions={[String(sort ?? 'newest')]}
+            value={
+              sort === 'newest' ? 'Newest' : sort === 'views' ? 'Most viewed' : sort === 'likes' ? 'Most liked' : 'A → Z'
+            }
             onOptionSelect={(_e, data) => setSort(String(data.optionValue ?? 'newest') as any)}
             className={styles.dropdown}
             listbox={{ className: styles.dropdownListbox }}
@@ -276,13 +376,33 @@ export default function BlogFilters(props: {
             <Option value="newest">Newest</Option>
             <Option value="views">Most viewed</Option>
             <Option value="likes">Most liked</Option>
-            <Option value="alpha">A → Z</Option>
+            {/* A → Z is provided via the A - Z button; removed from Dropdown */}
           </Dropdown>
-          <Button appearance="outline" onClick={() => setSortDir((s) => (s === 'asc' ? 'desc' : 'asc'))}>
-            {sortDir === 'asc' ? 'Asc' : 'Desc'}
+          <Button
+            appearance="outline"
+            onClick={() => setSortDir((s) => (s === 'asc' ? 'desc' : 'asc'))}
+            aria-label={sortDir === 'asc' ? 'Sort descending' : 'Sort ascending'}
+            title={sortDir === 'asc' ? 'Sort descending' : 'Sort ascending'}
+          >
+            <span className={styles.sortButtonContent}>
+              {sortDir === 'asc' ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                  <path d="M6 14L12 8L18 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                  <path d="M6 10L12 16L18 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+              <span className={styles.sortLabel}>{'A - Z'}</span>
+            </span>
           </Button>
           <Checkbox className={styles.checkbox} label="Liked" checked={liked} onChange={() => setLiked((s) => !s)} />
-          <Button onClick={() => { setQuery(''); setAuthor(''); setSort('newest'); setExpanded(false); }} appearance="outline">Clear</Button>
+          <Button className={styles.clearButton} onClick={() => { setQuery(''); setAuthor(ALL_AUTHOR); setCategory(ALL_CATEGORY); setSort('newest'); setExpanded(false); }} appearance="outline" aria-label="Clear filters" title="Clear filters">
+            <svg className={styles.clearIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </Button>
         </div>
       )}
     </div>
