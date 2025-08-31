@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MDXProvider, useMDXComponents } from '@mdx-js/react';
+import { MDXProvider } from '@mdx-js/react';
 import { evaluate } from '@mdx-js/mdx';
 import * as runtime from 'react/jsx-runtime';
 import React from 'react';
@@ -35,7 +35,7 @@ const baseComponents = (slug: string): Record<string, React.ComponentType<any>> 
 
 export default function MdxRenderer({ mdx, slug }: { mdx: string; slug: string }) {
   const [Content, setContent] = useState<React.ComponentType | null>(null);
-  const mdxComponents = useMDXComponents(baseComponents(slug));
+  const mdxComponents = baseComponents(slug);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,8 +47,7 @@ export default function MdxRenderer({ mdx, slug }: { mdx: string; slug: string }
           Fragment: runtime.Fragment,
           jsx: runtime.jsx,
           jsxs: runtime.jsxs,
-          // Let MDX read components from <MDXProvider>
-          useMDXComponents,
+          // Let MDX read components from <MDXProvider> (we will provide components when rendering)
           // Plugins
           remarkPlugins: [remarkGfm],
           rehypePlugins: [rehypeSlug],
