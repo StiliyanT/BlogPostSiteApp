@@ -1,5 +1,6 @@
 import { makeStyles, Toaster } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
+import React from 'react';
 import NavBar from "./components/NavBar";
 import HeroSection from "./components/HeroSection";
 import { Routes, Route } from "react-router-dom";
@@ -192,13 +193,30 @@ function App() {
     return () => window.removeEventListener('post:likes-updated', onLikesUpdated as any);
   }, []);
 
+  class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+    constructor(props: any) { super(props); this.state = { hasError: false }; }
+    static getDerivedStateFromError() { return { hasError: true }; }
+    componentDidCatch(err: any) { console.error('App render error', err); }
+    render() {
+      if (this.state.hasError) return (
+        <div style={{ padding: 24 }}>
+          <h2>Something went wrong</h2>
+          <p>There was an error rendering the page. Try refreshing or go back to the home page.</p>
+          <a href="/">Return home</a>
+        </div>
+      );
+      return this.props.children as any;
+    }
+  }
+
   return (
     <div className={styles.root}>
       <NavBar />
   {/* Global toaster so notifications survive route changes */}
   <Toaster toasterId="app-toaster" />
       <main className={styles.main}>
-        <Routes>
+        <AppErrorBoundary>
+          <Routes>
           <Route
             path="/"
             element={
@@ -243,6 +261,7 @@ function App() {
           <Route path="/admin" element={<Admin />} />
           {/* Add more routes as needed */}
         </Routes>
+        </AppErrorBoundary>
       </main>
     </div>
   );

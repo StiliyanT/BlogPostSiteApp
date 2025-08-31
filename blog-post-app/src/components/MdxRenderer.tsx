@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { MDXProvider, useMDXComponents } from '@mdx-js/react';
 import { evaluate } from '@mdx-js/mdx';
 import * as runtime from 'react/jsx-runtime';
+import React from 'react';
 import remarkGfm from 'remark-gfm';
 import rehypeSlug from 'rehype-slug';
 import { toAbsolute } from '../lib/urls';
@@ -52,7 +53,21 @@ export default function MdxRenderer({ mdx, slug }: { mdx: string; slug: string }
           remarkPlugins: [remarkGfm],
           rehypePlugins: [rehypeSlug],
         });
-        if (!cancelled) setContent(() => (mod as any).default);
+
+        // Normalize module default export into a proper React component
+        const maybeComp = (mod as any).default;
+        let Comp: React.ComponentType;
+        if (typeof maybeComp === 'function') {
+          Comp = maybeComp as React.ComponentType;
+        } else if (React.isValidElement(maybeComp)) {
+          // wrap as component that returns the element
+          Comp = () => maybeComp as any;
+        } else {
+          // fallback: render JSON/string representation
+          Comp = () => React.createElement('div', null, 'Invalid MDX content');
+        }
+
+        if (!cancelled) setContent(() => Comp);
       } catch (err) {
         if (!cancelled) setContent(() => () => <div>Error rendering content.</div>);
         // Optionally log error
@@ -66,9 +81,28 @@ export default function MdxRenderer({ mdx, slug }: { mdx: string; slug: string }
 
   if (!Content) return <div>Rendering…</div>;
 
+  // Error boundary to catch runtime errors during MDX rendering
+  class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+    constructor(props: any) {
+      super(props);
+      this.state = { hasError: false };
+    }
+    static getDerivedStateFromError() { return { hasError: true }; }
+    componentDidCatch(err: any) {
+      // eslint-disable-next-line no-console
+      console.error('MDX runtime error', err);
+    }
+    render() {
+      if (this.state.hasError) return React.createElement('div', null, 'Error rendering content.');
+      return this.props.children as any;
+    }
+  }
+
   return (
     <MDXProvider components={mdxComponents}>
-      <Content />
+      <ErrorBoundary>
+        <Content />
+      </ErrorBoundary>
     </MDXProvider>
   );
 }
