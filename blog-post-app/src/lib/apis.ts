@@ -71,7 +71,20 @@ export async function toggleLike(slug: string, token?: string | null): Promise<n
   });
   if (res.status === 403 || res.status === 401) throw new Error('auth-required');
   if (!res.ok) throw new Error('Failed to toggle like');
-  try { const data = await res.json(); return typeof data?.likes === 'number' ? data.likes : null; } catch { return null; }
+  try {
+    const data = await res.json();
+    if (typeof data?.likes === 'number') return data.likes;
+  } catch {
+    // fallthrough to fallback
+  }
+
+  // Fallback: try fetching the post detail to obtain the latest likes count
+  try {
+    const detail = await getPostBySlug(slug);
+    return (detail as any).likes ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getLikedPosts(token?: string | null): Promise<BlogPostListItem[]> {

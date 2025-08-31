@@ -194,11 +194,19 @@ import { useEffect, useState } from 'react';
                 }
                 setLikePending(true);
                 try {
-                  const newLikes = await toggleLike(slug, token);
-                  if (typeof newLikes === 'number') {
-                    setPost((curr) => (curr ? { ...curr, likes: newLikes } : curr));
+                    const newLikes = await toggleLike(slug, token);
+                    if (typeof newLikes === 'number') {
+                      setPost((curr) => (curr ? { ...curr, likes: newLikes } : curr));
+                    } else {
+                      // optimistic fallback: increment/decrement locally so UI reflects change
+                      setPost((curr) => {
+                        if (!curr) return curr;
+                        const prev = (curr as any).likes ?? 0;
+                        const next = isLiked ? Math.max(0, prev - 1) : prev + 1;
+                        return { ...curr, likes: next } as any;
+                      });
+                    }
                     setIsLiked(prev => !prev);
-                  }
                 } catch (e: any) {
                   if (e?.message === 'auth-required') {
                     window.location.href = '/login';
