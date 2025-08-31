@@ -138,7 +138,6 @@ export default function Admin() {
   const [slug, setSlug] = useState('');
   const [title, setTitle] = useState('');
   const [titleError, setTitleError] = useState<string | null>(null);
-  const [slugError, setSlugError] = useState<string | null>(null);
   const [authors, setAuthors] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
@@ -191,9 +190,9 @@ export default function Admin() {
     if (!slug || slug === generated || slug === slugify(slug)) {
       setSlug(generated);
     }
-    // reset validation when typing
-    setTitleError(null);
-    setSlugError(null);
+  // reset validation when typing
+  setTitleError(null);
+  setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title]);
 
@@ -264,16 +263,16 @@ export default function Admin() {
     // sanitize slug and validate
     const sanitized = slugify(slug || title);
     if (!sanitized) {
-      setSlugError('Invalid title/slug after sanitization');
+      setError('Invalid title/slug after sanitization');
       setBusy(false);
       return;
     }
-    setSlug(sanitized);
+  setSlug(sanitized);
 
     // Quick local duplicate check against loaded items
     const existsLocally = (items ?? []).some(p => String(p.slug).toLowerCase() === sanitized.toLowerCase());
     if (existsLocally) {
-      setSlugError('A post with this slug already exists (locally). Choose a different title or slug.');
+      setError('A post with the generated slug already exists (locally). Choose a different title.');
       setBusy(false);
       return;
     }
@@ -283,9 +282,9 @@ export default function Admin() {
       try {
         await getPostBySlug(sanitized);
         // If we didn't throw, the slug exists on server
-        setSlugError('A post with this slug already exists on the server. Choose a different title or slug.');
-        setBusy(false);
-        return;
+  setError('A post with the generated slug already exists on the server. Choose a different title.');
+  setBusy(false);
+  return;
       } catch (err: any) {
         // getPostBySlug throws Error('not-found') when 404; ignore that and proceed
         if (String(err?.message || '') !== 'not-found') throw err;
@@ -331,43 +330,62 @@ export default function Admin() {
 
       <section className={styles.card}>
         <h3>Upload new post (.zip)</h3>
-        <form onSubmit={onUpload} className={styles.form}>
-          <input type="file" accept=".zip" onChange={e => setFile(e.target.files?.[0] ?? null)} />
-          <Field label="Title">
-            <Input value={title} onChange={e => setTitle((e.target as HTMLInputElement).value)} className={styles.input} placeholder="Post title (required)" />
-            {titleError && <div className={styles.error}>{titleError}</div>}
-          </Field>
-          <Field label="Author">
-            <Dropdown
-              selectedOptions={selectedAuthorId ? [selectedAuthorId] : []}
-              onOptionSelect={(_, data) => setSelectedAuthorId(String(data.optionValue ?? null))}
-              className={styles.dropdown}
-              listbox={{ className: styles.dropdownListbox }}
-            >
-              {authors.map(a => <Option key={a.id} value={a.id}>{a.name}</Option>)}
-            </Dropdown>
-          </Field>
-          <Field label="Category">
-            <Dropdown
-              selectedOptions={selectedCategoryId ? [selectedCategoryId] : []}
-              onOptionSelect={(_, data) => setSelectedCategoryId(String(data.optionValue ?? null))}
-              className={styles.dropdown}
-              listbox={{ className: styles.dropdownListbox }}
-            >
-              {categories.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
-            </Dropdown>
-          </Field>
-          <Field label="Create category">
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Input value={newCategoryName} onChange={e => setNewCategoryName((e.target as HTMLInputElement).value)} className={styles.input} placeholder="Category name" />
-              <Button className={styles.ctaBtn} onClick={onCreateCategory} disabled={!newCategoryName || busy}>Create</Button>
+        <form onSubmit={onUpload} className={styles.form} style={{ alignItems: 'stretch' }}>
+          {/* Row 1: File | Title | Author | Category */}
+          <div style={{ display: 'flex', gap: 12, width: '100%', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 200 }}>
+              <input type="file" accept=".zip" onChange={e => setFile(e.target.files?.[0] ?? null)} />
             </div>
-          </Field>
-          <Field label="Optional slug">
-            <Input value={slug} onChange={e => setSlug((e.target as HTMLInputElement).value)} placeholder="my-awesome-post" className={styles.input} />
-            {slugError && <div className={styles.error}>{slugError}</div>}
-          </Field>
-          <Button type="submit" className={styles.ctaBtn} disabled={!file || busy}>Upload</Button>
+
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <Field label="Title">
+                <Input value={title} onChange={e => setTitle((e.target as HTMLInputElement).value)} className={styles.input} placeholder="Post title (required)" />
+                {titleError && <div className={styles.error}>{titleError}</div>}
+              </Field>
+            </div>
+
+            <div style={{ width: 240 }}>
+              <Field label="Author">
+                <Dropdown
+                  selectedOptions={selectedAuthorId ? [selectedAuthorId] : []}
+                  onOptionSelect={(_, data) => setSelectedAuthorId(String(data.optionValue ?? null))}
+                  className={styles.dropdown}
+                  listbox={{ className: styles.dropdownListbox }}
+                >
+                  {authors.map(a => <Option key={a.id} value={a.id}>{a.name}</Option>)}
+                </Dropdown>
+              </Field>
+            </div>
+
+            <div style={{ width: 240 }}>
+              <Field label="Category">
+                <Dropdown
+                  selectedOptions={selectedCategoryId ? [selectedCategoryId] : []}
+                  onOptionSelect={(_, data) => setSelectedCategoryId(String(data.optionValue ?? null))}
+                  className={styles.dropdown}
+                  listbox={{ className: styles.dropdownListbox }}
+                >
+                  {categories.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
+                </Dropdown>
+              </Field>
+            </div>
+          </div>
+
+          {/* Row 2: Create category (left) and Upload button (right) */}
+          <div style={{ display: 'flex', gap: 12, width: '100%', marginTop: 12, alignItems: 'center' }}>
+            <div style={{ flex: 1, minWidth: 300 }}>
+              <Field label="Create category">
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Input value={newCategoryName} onChange={e => setNewCategoryName((e.target as HTMLInputElement).value)} className={styles.input} placeholder="Category name" />
+                  <Button className={styles.ctaBtn} onClick={onCreateCategory} disabled={!newCategoryName || busy}>Create</Button>
+                </div>
+              </Field>
+            </div>
+
+            <div style={{ marginLeft: 'auto' }}>
+              <Button type="submit" className={styles.ctaBtn} disabled={!file || busy}>Upload</Button>
+            </div>
+          </div>
         </form>
         {error && <p className={styles.error}>{error}</p>}
       </section>

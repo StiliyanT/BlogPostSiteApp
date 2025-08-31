@@ -109,7 +109,7 @@ const HeroSection: React.FC = () => {
           Featured Posts
         </a>
         <a href="/about" className={styles.buttonSecondary}>
-          About Me
+          About Us
         </a>
       </div>
     </section>
