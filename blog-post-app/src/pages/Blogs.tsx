@@ -1,6 +1,6 @@
 import { makeStyles, Spinner } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import SpotlightCard from "../components/SpotlightCard";
 import BlogFilters from "../components/BlogFilters";
 import type { Filters as BlogFiltersType } from "../components/BlogFilters";
@@ -250,7 +250,11 @@ export default function Blogs() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [filters, setFilters] = useState<BlogFiltersType>({ query: '', author: undefined, sort: 'newest' });
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const likedFromQuery = params.get('liked') === 'true';
+
+  const [filters, setFilters] = useState<BlogFiltersType>({ query: '', author: undefined, sort: 'newest', liked: likedFromQuery });
   const auth = useAuth();
   const [showSignInModal, setShowSignInModal] = useState(false);
 
@@ -266,6 +270,17 @@ export default function Blogs() {
     setFilters(v);
     setCurrentPage(1);
   }
+
+  // If the page was opened with ?liked=true but the user is not signed in,
+  // show the sign-in modal and clear the liked filter (same UX as toggling it).
+  useEffect(() => {
+    if (filters.liked && !auth.token) {
+      setShowSignInModal(true);
+      setFilters((f) => ({ ...f, liked: false }));
+      setCurrentPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.liked, auth.token]);
 
   useEffect(() => {
     let cancelled = false;
