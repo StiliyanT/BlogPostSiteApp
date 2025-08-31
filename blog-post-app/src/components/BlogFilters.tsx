@@ -44,9 +44,15 @@ const useStyles = makeStyles({
       '&:where(:focus-within)': { ...shorthands.borderColor('#3b82f6'), outline: '2px solid #93c5fd', outlineOffset: '2px', boxShadow: '0 0 0 4px rgba(59,130,246,0.10)' },
     },
   },
-  controls: {
+  checkbox: {
     display: 'flex',
-    gap: '0.5rem',
+    alignItems: 'center',
+    color: 'inherit',
+    marginLeft: '6px',
+  },
+  controls: {
+  display: 'flex',
+  gap: '1rem',
     alignItems: 'center',
     // subtle 'panel' look like admin
     backgroundColor: 'rgba(255,255,255,0.02)',
@@ -77,7 +83,7 @@ const useStyles = makeStyles({
   },
   selectContainer: {
     minWidth: '140px',
-    width: '220px',
+  width: '220px',
     '@media (max-width: 640px)': {
       width: '100%',
       minWidth: 'auto',
@@ -92,6 +98,7 @@ const useStyles = makeStyles({
   minHeight: '40px',
   display: 'flex',
   alignItems: 'center',
+  width: '100%',
   zIndex: 10,
     '@media (prefers-color-scheme: dark)': { backgroundColor: '#171717', border: '1px solid #404040' },
     selectors: {
@@ -134,7 +141,7 @@ export default function BlogFilters(props: {
   const [author, setAuthor] = useState<string | null>(value?.author ?? null);
   const [category, setCategory] = useState<string | null>(value?.category ?? null);
   const [sort, setSort] = useState<Filters['sort']>(value?.sort ?? 'newest');
-  const [sortDir, setSortDir] = useState<Filters['sortDir']>(value?.sortDir ?? 'desc');
+  const [sortDir, setSortDir] = useState<Filters['sortDir']>(value?.sortDir ?? 'asc');
   const [liked, setLiked] = useState<boolean>(value?.liked ?? false);
   const [expanded, setExpanded] = useState<boolean>(false);
 
@@ -190,8 +197,8 @@ export default function BlogFilters(props: {
           {/* desktop controls; on mobile these are shown when expanded */}
           <div className={styles.selectContainer}>
             <Dropdown
-              selectedOptions={author ? [author] : []}
-              onOptionSelect={(_e, data) => setAuthor(data.optionValue ? String(data.optionValue) : null)}
+              selectedOptions={[author ?? '']}
+              onOptionSelect={(_e, data) => setAuthor(data.optionValue ? String(data.optionValue) : '')}
               className={styles.dropdown}
               listbox={{ className: styles.dropdownListbox }}
             >
@@ -204,8 +211,8 @@ export default function BlogFilters(props: {
 
           <div className={styles.selectContainer}>
             <Dropdown
-              selectedOptions={category ? [category] : []}
-              onOptionSelect={(_e, data) => setCategory(data.optionValue ? String(data.optionValue) : null)}
+              selectedOptions={[category ?? '']}
+              onOptionSelect={(_e, data) => setCategory(data.optionValue ? String(data.optionValue) : '')}
               className={styles.dropdown}
               listbox={{ className: styles.dropdownListbox }}
             >
@@ -218,7 +225,7 @@ export default function BlogFilters(props: {
 
           <div className={styles.selectContainer}>
             <Dropdown
-              selectedOptions={[String(sort)]}
+              selectedOptions={[String(sort ?? 'newest')]}
               onOptionSelect={(_e, data) => setSort(String(data.optionValue ?? 'newest') as any)}
               className={styles.dropdown}
               listbox={{ className: styles.dropdownListbox }}
@@ -231,19 +238,13 @@ export default function BlogFilters(props: {
           </div>
 
           <div style={{ width: 96 }}>
-            <Dropdown
-              selectedOptions={[String(sortDir)]}
-              onOptionSelect={(_e, data) => setSortDir(String(data.optionValue ?? 'desc') as any)}
-              className={styles.dropdown}
-              listbox={{ className: styles.dropdownListbox }}
-            >
-              <Option value="desc">Desc</Option>
-              <Option value="asc">Asc</Option>
-            </Dropdown>
+            <Button appearance="outline" onClick={() => setSortDir((s) => (s === 'asc' ? 'desc' : 'asc'))}>
+              {sortDir === 'asc' ? 'Asc' : 'Desc'}
+            </Button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Checkbox label="Liked" checked={liked} onChange={() => setLiked((s) => !s)} />
+            <Checkbox className={styles.checkbox} label="Liked" checked={liked} onChange={() => setLiked((s) => !s)} />
           </div>
 
           <div>
@@ -256,8 +257,8 @@ export default function BlogFilters(props: {
       {expanded && (
         <div className={styles.panel}>
           <Dropdown
-            selectedOptions={author ? [author] : []}
-            onOptionSelect={(_e, data) => setAuthor(data.optionValue ? String(data.optionValue) : null)}
+            selectedOptions={[author ?? '']}
+            onOptionSelect={(_e, data) => setAuthor(data.optionValue ? String(data.optionValue) : '')}
             className={styles.dropdown}
             listbox={{ className: styles.dropdownListbox }}
           >
@@ -267,7 +268,7 @@ export default function BlogFilters(props: {
             ))}
           </Dropdown>
           <Dropdown
-            selectedOptions={[String(sort)]}
+            selectedOptions={[String(sort ?? 'newest')]}
             onOptionSelect={(_e, data) => setSort(String(data.optionValue ?? 'newest') as any)}
             className={styles.dropdown}
             listbox={{ className: styles.dropdownListbox }}
@@ -277,17 +278,11 @@ export default function BlogFilters(props: {
             <Option value="likes">Most liked</Option>
             <Option value="alpha">A → Z</Option>
           </Dropdown>
-          <Dropdown
-            selectedOptions={[String(sortDir)]}
-            onOptionSelect={(_e, data) => setSortDir(String(data.optionValue ?? 'desc') as any)}
-            className={styles.dropdown}
-            listbox={{ className: styles.dropdownListbox }}
-          >
-            <Option value="desc">Desc</Option>
-            <Option value="asc">Asc</Option>
-          </Dropdown>
-          <Checkbox label="Liked" checked={liked} onChange={() => setLiked((s) => !s)} />
-          <Button onClick={() => { setQuery(''); setAuthor(null); setSort('newest'); setExpanded(false); }} appearance="outline">Clear</Button>
+          <Button appearance="outline" onClick={() => setSortDir((s) => (s === 'asc' ? 'desc' : 'asc'))}>
+            {sortDir === 'asc' ? 'Asc' : 'Desc'}
+          </Button>
+          <Checkbox className={styles.checkbox} label="Liked" checked={liked} onChange={() => setLiked((s) => !s)} />
+          <Button onClick={() => { setQuery(''); setAuthor(''); setSort('newest'); setExpanded(false); }} appearance="outline">Clear</Button>
         </div>
       )}
     </div>
