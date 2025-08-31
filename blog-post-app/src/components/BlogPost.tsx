@@ -56,11 +56,23 @@ import { useEffect, useState } from 'react';
         flexWrap: 'wrap',
         gap: '12px',
         alignItems: 'center',
+        justifyContent: 'space-between',
         color: '#475569',
         fontSize: '0.95rem',
         marginTop: '6px',
         marginBottom: '6px',
         '@media (prefers-color-scheme: dark)': { color: '#9ca3af' },
+      },
+      metaLeft: {
+        display: 'flex',
+        gap: '12px',
+        alignItems: 'center',
+        flexWrap: 'wrap'
+      },
+      metaRight: {
+        display: 'flex',
+        gap: '12px',
+        alignItems: 'center',
       },
       heroImg: {
         width: '100%',
@@ -82,17 +94,7 @@ import { useEffect, useState } from 'react';
       muted: {
         opacity: 0.8,
       },
-      likeRow: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        marginTop: '8px',
-        marginBottom: '8px',
-      },
-      likeCount: {
-        opacity: 0.95,
-        fontWeight: 700,
-      },
+  // likeRow/likeCount removed — likes are now anchored to metaRight
     });
 
     export default function BlogPost() {
@@ -159,7 +161,6 @@ import { useEffect, useState } from 'react';
   const authorObj = (post as any).author as any;
   const authorName = authorObj?.name ?? (typeof authorObj === 'string' ? authorObj : undefined);
       const views = (post as any).views as number | undefined;
-      const likes = (post as any).likes as number | undefined;
 
       return (
         <div className={styles.root}>
@@ -167,25 +168,14 @@ import { useEffect, useState } from 'react';
             <Link to="/blogs" className={styles.backLink}>← All posts</Link>
             <h1 className={styles.title}>{post.title}</h1>
             <div className={styles.metaRow}>
-              <span>{new Date(post.createdOn).toLocaleDateString()}</span>
-              {authorName && <span>· By {authorName}</span>}
-              {(typeof views === 'number' || typeof likes === 'number') && (
-                <span>
-                  {(typeof views === 'number' ? `👁️ ${views}` : '')}
-                  {(typeof views === 'number' && typeof likes === 'number') ? '  ·  ' : ''}
-                  {(typeof likes === 'number' ? `❤️ ${likes}` : '')}
-                </span>
-              )}
-            </div>
-
-            {hero ? (
-              <a href={toAbsolute(hero)} target="_blank" rel="noopener noreferrer">
-                <img src={toAbsolute(hero)} alt={post.title || ''} className={styles.heroImg} />
-              </a>
-            ) : null}
-
-            <div className={styles.likeRow}>
-              <Button appearance="primary" disabled={likePending} onClick={async () => {
+              <div className={styles.metaLeft}>
+                <span>{new Date(post.createdOn).toLocaleDateString()}</span>
+                {authorName && <span>· By {authorName}</span>}
+                {(post as any).category?.name && <span>· {((post as any).category?.name)}</span>}
+                {(typeof views === 'number') && <span>· 👁️ {views}</span>}
+              </div>
+              <div className={styles.metaRight}>
+                <Button appearance="primary" disabled={likePending} onClick={async () => {
                 if (!post) return;
                 if (!token) {
                   // Redirect to login page
@@ -229,8 +219,14 @@ import { useEffect, useState } from 'react';
               }}>
                 {isLiked ? '✓ Liked' : '❤️ Like'}
               </Button>
-              <span className={styles.likeCount}>{(post?.likes ?? 0).toString()}</span>
+              </div>
             </div>
+
+            {hero ? (
+              <a href={toAbsolute(hero)} target="_blank" rel="noopener noreferrer">
+                <img src={toAbsolute(hero)} alt={post.title || ''} className={styles.heroImg} />
+              </a>
+            ) : null}
 
             {mdxSource ? (
               <div className={styles.content}>
