@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
     import { useParams, Link } from 'react-router-dom';
   import { getPostBySlug, type BlogPostDetail, trackPostView, toggleLike, getLikedPosts } from '../lib/apis';
     import MdxRenderer from '../components/MdxRenderer';
@@ -187,8 +187,28 @@ import { useEffect, useState, useRef } from 'react';
   const authorName = authorObj?.name ?? (typeof authorObj === 'string' ? authorObj : undefined);
     const views = (post as any).views as number | undefined;
 
+      // Local ErrorBoundary to catch render-time errors inside the BlogPost component
+      class BlogPostErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; message?: string }> {
+        constructor(props: any) { super(props); this.state = { hasError: false }; }
+        static getDerivedStateFromError(err: any) { return { hasError: true, message: String(err?.message || err) }; }
+        componentDidCatch(err: any, info: any) { console.error('[BlogPostErrorBoundary] render error', err, info); }
+        render() {
+          if (this.state.hasError) return (
+            <div className={styles.root}>
+              <div className={styles.container}>
+                <h2>Post failed to render</h2>
+                <p>{this.state.message || 'An error occurred while rendering this post.'}</p>
+                <Link to="/blogs" className={styles.backLink}>← Back to blog</Link>
+              </div>
+            </div>
+          );
+          return this.props.children as any;
+        }
+      }
+
       return (
         <div className={styles.root}>
+          <BlogPostErrorBoundary>
           <article className={styles.container}>
             <Link to="/blogs" className={styles.backLink}>← All posts</Link>
             <h1 className={styles.title}>{post.title}</h1>
@@ -273,6 +293,7 @@ import { useEffect, useState, useRef } from 'react';
               <p className={styles.muted}>No content available.</p>
             )}
           </article>
+          </BlogPostErrorBoundary>
         </div>
       );
     }

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { MDXProvider } from '@mdx-js/react';
 import { evaluate } from '@mdx-js/mdx';
 import * as runtime from 'react/jsx-runtime';
@@ -33,47 +33,25 @@ const baseComponents = (slug: string): Record<string, React.ComponentType<any>> 
   a: (p: any) => <MdxLink {...p} />,
 });
 
-// Simple ErrorBoundary moved out of the renderer to avoid redefining on each render
-class MdxErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(err: any, info: any) {
-    // Log the error and component stack for debugging
-    // eslint-disable-next-line no-console
-    console.error('[MdxErrorBoundary] MDX render error', err, info?.componentStack);
-  }
-  render() {
-    if (this.state.hasError) return React.createElement('div', null, 'Error rendering content.');
-    return this.props.children as any;
-  }
-}
-
 export default function MdxRenderer({ mdx, slug }: { mdx: string; slug: string }) {
   const [Content, setContent] = useState<React.ComponentType | null>(null);
-  const mdxComponents = useMemo(() => baseComponents(slug), [slug]);
-
-  // cancelled flag for async effect
-  const cancelledRef = useRef(false);
+  const mdxComponents = baseComponents(slug);
 
   useEffect(() => {
-    cancelledRef.current = false;
-    let disposed = false;
-
-    const load = async () => {
+    let cancelled = false;
+    (async () => {
       try {
         // Compile & evaluate MDX into a React component module
         const mod = await evaluate(mdx, {
+          // Provide the JSX runtime for MDX to use
           Fragment: runtime.Fragment,
           jsx: runtime.jsx,
           jsxs: runtime.jsxs,
+          // Let MDX read components from <MDXProvider> (we will provide components when rendering)
+          // Plugins
           remarkPlugins: [remarkGfm],
           rehypePlugins: [rehypeSlug],
         });
-
-        if (disposed) return;
 
         // Normalize module default export into a proper React component
         const maybeComp = (mod as any).default;
@@ -81,51 +59,66 @@ export default function MdxRenderer({ mdx, slug }: { mdx: string; slug: string }
         if (typeof maybeComp === 'function') {
           Comp = maybeComp as React.ComponentType;
         } else if (React.isValidElement(maybeComp)) {
+          // wrap as component that returns the element
           Comp = () => maybeComp as any;
         } else {
+          // fallback: render JSON/string representation
           Comp = () => React.createElement('div', null, 'Invalid MDX content');
         }
 
-        // Log module shape for diagnostics
+        if (!cancelled) {
+          // Debug: log the shape of the evaluated module/component for diagnostics
+          try { console.debug('[MdxRenderer] evaluated MDX component', { slug, compType: typeof Comp }); } catch {}
+          setContent(() => Comp);
+        }
+      } catch (err: any) {
+        // Log the evaluation error and set a content component that shows details so it doesn't bubble up
         // eslint-disable-next-line no-console
-        console.debug('[MdxRenderer] loaded MDX', { slug, isFunction: typeof maybeComp === 'function' });
-
-        if (!cancelledRef.current) setContent(() => Comp);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('[MdxRenderer] evaluate error', err);
-        if (!cancelledRef.current) setContent(() => () => React.createElement('div', null, 'Error rendering content.'));
+        console.error('[MdxRenderer] MDX evaluation error', err);
+        if (!cancelled) setContent(() => () => (
+          React.createElement('div', { style: { color: 'red' } }, [
+            React.createElement('h3', { key: 'h' }, 'Error rendering content.'),
+            React.createElement('pre', { key: 'p', style: { whiteSpace: 'pre-wrap', fontSize: '0.9rem' } }, String(err?.message || err)),
+          ])
+        ));
       }
-    };
-
-    load();
-
+    })();
     return () => {
-      disposed = true;
-      cancelledRef.current = true;
-      // clear Content so next load starts fresh
-      setContent(null);
+      cancelled = true;
     };
-  }, [mdx, slug]);
+  }, [mdx]);
 
   if (!Content) return <div>Rendering…</div>;
 
-  // Short fingerprint to force remount when mdx content changes
-  const contentKey = useMemo(() => {
-    const s = mdx || '';
-    // simple djb2 hash to keep key short
-    let h = 5381;
-    for (let i = 0; i < Math.min(128, s.length); i++) h = ((h << 5) + h) + s.charCodeAt(i);
-    return `${Math.abs(h)}`;
-  }, [mdx]);
+  // Error boundary to catch runtime errors during MDX rendering
+  class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+    constructor(props: any) {
+      super(props);
+      this.state = { hasError: false };
+    }
+    static getDerivedStateFromError() { return { hasError: true }; }
+    componentDidCatch(err: any) {
+      // eslint-disable-next-line no-console
+      console.error('MDX runtime error', err);
+    }
+    render() {
+      if (this.state.hasError) return React.createElement('div', null, 'Error rendering content.');
+      return this.props.children as any;
+    }
+  }
+
+  // Key the rendered content by a short fingerprint of the MDX so React will remount the
+  // evaluated component whenever the underlying MDX changes. This prevents hook mismatches
+  // when the evaluated module's internal hook usage differs between renders.
+  const contentKey = mdx ? `${mdx.length}:${mdx.slice(0, 16)}` : 'empty';
 
   return (
     <MDXProvider components={mdxComponents}>
-      <MdxErrorBoundary>
+      <ErrorBoundary>
         <div key={contentKey}>
           <Content />
         </div>
-      </MdxErrorBoundary>
+      </ErrorBoundary>
     </MDXProvider>
   );
 }
