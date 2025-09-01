@@ -143,27 +143,17 @@ import { useEffect, useState, useRef } from 'react';
         }
       }, [slug, post, error]);
 
-      if (error === 'not-found') {
-        return (
-          <div className={styles.root}>
-            <div className={styles.container}>
-              <p>Post not found.</p>
-              <Link to="/blogs" className={styles.backLink}>← Back to blog</Link>
-            </div>
-          </div>
-        );
-      }
-      if (error) return <div className={styles.root}><div className={styles.container}>Error: {error}</div></div>;
-      if (!post) return <div className={styles.root}><div className={styles.container}>Loading…</div></div>;
-
-      const hero = (post as any).heroUrl ?? (post as any).heroImageUrl;
+      // Image state and attempt tracking must be declared unconditionally (hooks must run
+      // in the same order on every render). Compute hero safely when post is null.
+      const hero = post ? ((post as any).heroUrl ?? (post as any).heroImageUrl) : undefined;
       const [imgSrc, setImgSrc] = useState<string | null>(null);
-      const attemptRef = useRef(0);
+      const attemptIndexRef = useRef<number>(0);
+      const candidatesRef = useRef<string[] | undefined>(undefined);
 
       // Build a candidate list when hero or slug changes. First candidate is the API-provided hero (normalized),
       // then try common filenames inside the post's assets folder, then fall back to a placeholder.
       useEffect(() => {
-        attemptRef.current = 0;
+      attemptIndexRef.current = 0;
         if (!slug) { setImgSrc(null); return; }
         const candidates: string[] = [];
         if (hero) candidates.push(toAbsolute(hero));
@@ -177,12 +167,25 @@ import { useEffect, useState, useRef } from 'react';
         candidates.push('/static/placeholder.jpg');
         setImgSrc(candidates[0] ?? null);
         // store candidates on the ref so onError can advance through them
-        (attemptRef as any).candidates = candidates;
+      candidatesRef.current = candidates;
       }, [hero, slug]);
-      const mdxSource: string = (post as any).mdx ?? (post as any).content ?? '';
+
+    if (error === 'not-found') {
+        return (
+          <div className={styles.root}>
+            <div className={styles.container}>
+              <p>Post not found.</p>
+              <Link to="/blogs" className={styles.backLink}>← Back to blog</Link>
+            </div>
+          </div>
+        );
+      }
+      if (error) return <div className={styles.root}><div className={styles.container}>Error: {error}</div></div>;
+      if (!post) return <div className={styles.root}><div className={styles.container}>Loading…</div></div>;
+    const mdxSource: string = (post as any).mdx ?? (post as any).content ?? '';
   const authorObj = (post as any).author as any;
   const authorName = authorObj?.name ?? (typeof authorObj === 'string' ? authorObj : undefined);
-      const views = (post as any).views as number | undefined;
+    const views = (post as any).views as number | undefined;
 
       return (
         <div className={styles.root}>
@@ -251,10 +254,9 @@ import { useEffect, useState, useRef } from 'react';
                 className={styles.heroImg}
                 onError={() => {
                   try {
-                    const info: any = attemptRef as any;
-                    const candidates: string[] = info.candidates || [];
-                    attemptRef.current += 1;
-                    const next = candidates[attemptRef.current];
+                    const candidates: string[] = candidatesRef.current || [];
+                    attemptIndexRef.current += 1;
+                    const next = candidates[attemptIndexRef.current];
                     if (next) setImgSrc(next);
                   } catch {
                     // ignore
