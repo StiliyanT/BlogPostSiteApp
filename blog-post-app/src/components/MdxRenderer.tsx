@@ -29,13 +29,27 @@ function MdxLink(props: any) {
 }
 
 function Callout({ type = 'info', children, ...rest }: any) {
-  const bg = type === 'success' ? '#ecfdf5' : type === 'warning' ? '#fff7ed' : '#eff6ff';
-  const border = type === 'success' ? '#10b981' : type === 'warning' ? '#f97316' : '#3b82f6';
+  // Respect user's color scheme to keep text readable.
+  const prefersDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const accent = type === 'success' ? '#10b981' : type === 'warning' ? '#f97316' : '#3b82f6';
   const icon = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : '💡';
+  const light = {
+    background: type === 'success' ? '#ecfdf5' : type === 'warning' ? '#fff7ed' : '#eff6ff',
+    border: accent,
+    text: '#0f172a',
+    headerOpacity: 0.95,
+  };
+  const dark = {
+    background: type === 'success' ? '#08321a' : type === 'warning' ? '#4a2b05' : '#05286a',
+    border: accent,
+    text: '#e6eef8',
+    headerOpacity: 1,
+  };
+  const s = prefersDark ? dark : light;
   return (
-    <div {...rest} style={{ background: bg, borderLeft: `4px solid ${border}`, padding: '12px 14px', borderRadius: 6, margin: '12px 0' }}>
-      <div style={{ fontWeight: 600, marginBottom: 6 }}>{icon} {String(type).toUpperCase()}</div>
-      <div>{children}</div>
+    <div {...rest} style={{ background: s.background, borderLeft: `4px solid ${s.border}`, padding: '12px 14px', borderRadius: 6, margin: '12px 0', color: s.text }}>
+      <div style={{ fontWeight: 700, marginBottom: 8, color: s.text, opacity: s.headerOpacity }}>{icon} {String(type).toUpperCase()}</div>
+      <div style={{ color: s.text }}>{children}</div>
     </div>
   );
 }
