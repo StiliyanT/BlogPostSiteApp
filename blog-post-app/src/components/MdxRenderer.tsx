@@ -28,9 +28,22 @@ function MdxLink(props: any) {
   return <a {...props} target={isExternal ? '_blank' : undefined} rel={isExternal ? 'noopener noreferrer' : undefined} />;
 }
 
+function Callout({ type = 'info', children, ...rest }: any) {
+  const bg = type === 'success' ? '#ecfdf5' : type === 'warning' ? '#fff7ed' : '#eff6ff';
+  const border = type === 'success' ? '#10b981' : type === 'warning' ? '#f97316' : '#3b82f6';
+  const icon = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : '💡';
+  return (
+    <div {...rest} style={{ background: bg, borderLeft: `4px solid ${border}`, padding: '12px 14px', borderRadius: 6, margin: '12px 0' }}>
+      <div style={{ fontWeight: 600, marginBottom: 6 }}>{icon} {String(type).toUpperCase()}</div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
 const baseComponents = (slug: string): Record<string, React.ComponentType<any>> => ({
   img: (p: any) => <MdxImage {...p} slug={slug} />,
   a: (p: any) => <MdxLink {...p} />,
+  Callout: (p: any) => <Callout {...p} />,
 });
 
 export default function MdxRenderer({ mdx, slug }: { mdx: string; slug: string }) {
