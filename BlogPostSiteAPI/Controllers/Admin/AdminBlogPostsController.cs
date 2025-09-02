@@ -32,6 +32,7 @@ public class AdminBlogPostsController : ControllerBase
     public async Task<IActionResult> UploadZipAsync(
         IFormFile file,
         [FromForm] string? slug,
+        [FromForm(Name = "title")] string? formTitle,
         [FromForm] Guid? authorId,
         [FromForm] Guid? categoryId,
         CancellationToken ct)
@@ -50,7 +51,8 @@ public class AdminBlogPostsController : ControllerBase
         var mdx = await System.IO.File.ReadAllTextAsync(indexPath, ct);
         var fm = MdxFrontMatter.Parse(mdx);
 
-        var title = !string.IsNullOrWhiteSpace(fm.Title) ? fm.Title : saved.Slug.Replace('-', ' ');
+    // Prefer explicitly supplied title form field, then front-matter, then slug-derived title
+    var title = !string.IsNullOrWhiteSpace(formTitle) ? formTitle : (!string.IsNullOrWhiteSpace(fm.Title) ? fm.Title : saved.Slug.Replace('-', ' '));
         var summary = fm.Summary ?? string.Empty;
 
         string? heroRel = null;

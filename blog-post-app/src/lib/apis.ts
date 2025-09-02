@@ -186,11 +186,12 @@ export async function deletePost(id: string, token: string): Promise<void> {
   if (!res.ok) throw new Error('Failed to delete');
 }
 
-export async function uploadPostZip(params: { file: File; slug?: string; authorId?: string; categoryId?: string; token: string }): Promise<any> {
-  const { file, slug, token, authorId, categoryId } = params as any;
+export async function uploadPostZip(params: { file: File; slug?: string; authorId?: string; categoryId?: string; token: string; title?: string }): Promise<any> {
+  const { file, slug, token, authorId, categoryId, title } = params as any;
   const fd = new FormData();
   fd.append('file', file);
   if (slug) fd.append('slug', slug);
+  if (title) fd.append('title', title);
   if (authorId) fd.append('authorId', authorId);
   if (categoryId) fd.append('categoryId', categoryId);
   const res = await fetch(`${API_BASE}/api/admin/blogposts/upload`, {

@@ -290,7 +290,7 @@ export default function Admin() {
         if (String(err?.message || '') !== 'not-found') throw err;
       }
 
-      await uploadPostZip({ file, slug: sanitized || undefined, authorId: selectedAuthorId ?? undefined, categoryId: selectedCategoryId ?? undefined, token });
+  await uploadPostZip({ file, slug: sanitized || undefined, title: title || undefined, authorId: selectedAuthorId ?? undefined, categoryId: selectedCategoryId ?? undefined, token });
       setFile(null); setSlug(''); setTitle('');
       await refresh();
       dispatchToast(<Toast><ToastTitle>Upload complete</ToastTitle></Toast>, { intent: 'success' });

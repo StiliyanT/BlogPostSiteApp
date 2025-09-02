@@ -264,15 +264,25 @@ namespace BlogPostSiteAPI.Controllers
             blogPost.ModifiedOn = blogPost.CreatedOn;
             if (string.IsNullOrWhiteSpace(blogPost.Slug))
             {
-                // naive slug generation from title
-                blogPost.Slug = blogPost.Title
-                    .Trim()
-                    .ToLowerInvariant()
-                    .Replace(' ', '-')
-                    .Replace("--", "-");
+                // naive slug generation from title but preserve original Title casing
+                blogPost.Slug = Slugify(blogPost.Title ?? Guid.NewGuid().ToString("n"));
             }
             var created = await _repo.CreateBlogPostAsync(blogPost);
             return CreatedAtAction(nameof(GetBlogPostByIdAsync), new { id = created.Id }, created);
+        }
+
+        // Local slugify helper that preserves the source Title value while producing a URL-friendly slug.
+        private static string Slugify(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return Guid.NewGuid().ToString("n");
+            var s = input.Normalize(System.Text.NormalizationForm.FormKD);
+            // Remove diacritics by filtering out non-spacing marks
+            s = new string(s.Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).ToArray());
+            s = s.Trim();
+            // Replace non-alphanumeric with hyphen, collapse multiples, trim hyphens, lower-case slug only
+            s = System.Text.RegularExpressions.Regex.Replace(s, "[^A-Za-z0-9]+", "-");
+            s = System.Text.RegularExpressions.Regex.Replace(s, "-{2,}", "-").Trim('-');
+            return s.ToLowerInvariant();
         }
 
         // POST api/blogposts/slug/{slug}/like
