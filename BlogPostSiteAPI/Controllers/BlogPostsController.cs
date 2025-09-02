@@ -135,7 +135,34 @@ namespace BlogPostSiteAPI.Controllers
             if (!string.IsNullOrWhiteSpace(post.HeroImageRelativePath))
             {
                 var abs = Path.Combine(post.ContentPath, post.HeroImageRelativePath);
-                heroUrl = _storage.BuildPublicUrl(abs);
+                // If the file exists at the expected location, use it. Otherwise, attempt a best-effort search
+                // under the configured content root to find a matching filename (useful when slug/folder mismatch occurred).
+                if (System.IO.File.Exists(abs))
+                {
+                    heroUrl = _storage.BuildPublicUrl(abs);
+                }
+                else if (!string.IsNullOrWhiteSpace(_opts.RootPhysicalPath) && System.IO.Directory.Exists(_opts.RootPhysicalPath))
+                {
+                    try
+                    {
+                        var fname = Path.GetFileName(post.HeroImageRelativePath) ?? post.HeroImageRelativePath;
+                        // Search for the filename under the posts folder (limit depth to avoid expensive full-drive scan)
+                        var postsRoot = Path.Combine(_opts.RootPhysicalPath, "posts");
+                        if (Directory.Exists(postsRoot))
+                        {
+                            var matches = System.IO.Directory.GetFiles(postsRoot, fname, SearchOption.AllDirectories);
+                            var first = matches.FirstOrDefault();
+                            if (!string.IsNullOrEmpty(first) && System.IO.File.Exists(first))
+                            {
+                                heroUrl = _storage.BuildPublicUrl(first!);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // swallow IO errors and leave heroUrl null so UI can fallback
+                    }
+                }
             }
 
 
