@@ -120,13 +120,41 @@ export default function MdxRenderer({ mdx, slug }: { mdx: string; slug: string }
     }
   }
 
+  // Create dynamic fallback components for any capitalized JSX tags used in the MDX
+  // (e.g., Callout, Note). This prevents the MDX runtime from throwing when a
+  // custom component isn't provided.
+  const dynamicNames = new Set<string>();
+  try {
+    const re = /<([A-Z][A-Za-z0-9_]*)\b/g;
+    let m;
+    while ((m = re.exec(mdx || '')) !== null) {
+      dynamicNames.add(m[1]);
+    }
+  } catch {
+    // ignore
+  }
+
+  const dynamicComponents: Record<string, React.ComponentType<any>> = {};
+  dynamicNames.forEach((n) => {
+    if (!(n in mdxComponents)) {
+      dynamicComponents[n] = (props: any) => (
+        React.createElement('div', { style: { borderLeft: '4px solid #cbd5e1', padding: '8px 12px', borderRadius: 6, margin: '8px 0' } }, [
+          React.createElement('div', { key: 'hd', style: { fontWeight: 600, marginBottom: 6 } }, n),
+          React.createElement('div', { key: 'bd' }, props.children),
+        ])
+      );
+    }
+  });
+
+  const mergedComponents = { ...mdxComponents, ...dynamicComponents };
+
   // Key the rendered content by a short fingerprint of the MDX so React will remount the
   // evaluated component whenever the underlying MDX changes. This prevents hook mismatches
   // when the evaluated module's internal hook usage differs between renders.
   const contentKey = mdx ? `${mdx.length}:${mdx.slice(0, 16)}` : 'empty';
 
   return (
-    <MDXProvider components={mdxComponents}>
+    <MDXProvider components={mergedComponents}>
       <ErrorBoundary>
         <div key={contentKey}>
           <Content />
