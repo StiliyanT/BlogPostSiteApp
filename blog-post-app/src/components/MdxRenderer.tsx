@@ -157,7 +157,8 @@ export default function MdxRenderer({ mdx, slug }: { mdx: string; slug: string }
     <MDXProvider components={mergedComponents}>
       <ErrorBoundary>
         <div key={contentKey}>
-          <Content />
+          {/* Pass components explicitly to the evaluated MDX component — some MDX builds expect a `components` prop */}
+          {React.createElement((Content as any), { components: mergedComponents })}
         </div>
       </ErrorBoundary>
     </MDXProvider>
