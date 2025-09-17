@@ -163,9 +163,9 @@ export default function Register() {
       await registerUser(email, password);
       dispatchToast(
         <Toast>
-          <ToastTitle>Account created. Welcome!</ToastTitle>
+          <ToastTitle>Account created. Check your email to confirm your account.</ToastTitle>
         </Toast>,
-        { intent: 'success', timeout: 2500 }
+        { intent: 'success', timeout: 3500 }
       );
   // Rely on token-driven redirect in routes; no manual navigate
     } catch (e: unknown) {

@@ -99,19 +99,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {}
       throw new Error(msg);
     }
-    // Auto-login on success. If auto-login fails (for example because the email
-    // requires confirmation), surface a helpful message rather than the generic
-    // "Login failed" shown previously.
-    try {
-      await login(email, password);
-    } catch (err: any) {
-      const emsg = err && typeof err === 'object' && 'message' in err ? (err as any).message as string : String(err ?? '');
-      if (/confirm/i.test(emsg)) {
-        throw new Error('Account created. Please confirm your email before signing in.');
-      }
-      // Generic fallback: registration succeeded but automatic sign-in failed.
-      throw new Error('Account created but automatic sign-in failed; please sign in manually.');
-    }
+  // Registration succeeded. Do not attempt automatic sign-in here because
+  // email confirmation is required; surface success to the UI so it can
+  // instruct the user to check their email.
+  return;
   };
 
   const resendConfirmation = async (email: string) => {
