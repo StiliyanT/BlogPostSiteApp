@@ -162,7 +162,7 @@ function App() {
                 image: normalizeHeroUrl((detail as any).heroUrl ?? (detail as any).heroImageUrl),
                 // normalize author to a display string (API may return object or string)
                 author: (detail as any).author?.name ?? (typeof (detail as any).author === 'string' ? (detail as any).author : 'Unknown'),
-                views: (detail as any).views ?? 0,
+                      views: (detail as any).views ?? (p.views ?? 0),
                 likes: (detail as any).likes ?? (p as any).likes ?? 0,
                 createdOn: p.createdOn,
               };
