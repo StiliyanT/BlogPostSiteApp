@@ -10,7 +10,7 @@ type AuthState = {
 type AuthContextType = AuthState & {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<any>;
   resendConfirmation: (email: string) => Promise<void>;
 };
 
@@ -99,10 +99,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {}
       throw new Error(msg);
     }
-  // Registration succeeded. Do not attempt automatic sign-in here because
-  // email confirmation is required; surface success to the UI so it can
-  // instruct the user to check their email.
-  return;
+  // Registration succeeded. Parse and return the server response so the
+  // caller can decide how to surface success (for example, show a toast).
+  try {
+    const data = await res.json();
+    return data;
+  } catch {
+    // If parsing fails (shouldn't for our API), still treat as success.
+    return null;
+  }
   };
 
   const resendConfirmation = async (email: string) => {

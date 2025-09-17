@@ -142,6 +142,7 @@ export default function Register() {
   const [confirm, setConfirm] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const { dispatchToast } = useToastController('app-toaster');
   const navigate = useNavigate();
@@ -161,20 +162,17 @@ export default function Register() {
     setPending(true);
     try {
       await registerUser(email, password);
+      // Show a toast and an in-page success message with guidance.
       dispatchToast(
         <Toast>
-          <ToastTitle>Account created. Check your email to confirm your account.</ToastTitle>
+          <ToastTitle>Account created</ToastTitle>
         </Toast>,
-        { intent: 'success', timeout: 3500 }
+        { intent: 'success', timeout: 2500 }
       );
-  // Rely on token-driven redirect in routes; no manual navigate
+  setSuccess('Account created. Check your email for a confirmation link before signing in.');
+      setError(null);
     } catch (e: unknown) {
-      let msg = e && typeof e === 'object' && 'message' in (e as any) ? (e as any).message as string : String(e ?? 'Registration failed');
-      // Defensive mapping: some login/register error paths still surface a generic 'Login failed'
-      // message to the client. When that happens during registration, provide a helpful next-step.
-      if (typeof msg === 'string' && msg.toLowerCase().includes('login failed')) {
-        msg = 'Account created but automatic sign-in failed; please sign in manually or check your email for confirmation.';
-      }
+      const msg = e && typeof e === 'object' && 'message' in (e as any) ? (e as any).message as string : String(e ?? 'Registration failed');
       setError(msg);
     } finally {
       setPending(false);
@@ -206,7 +204,13 @@ export default function Register() {
         {error && (
           <div className={styles.error} aria-live="polite">{error}</div>
         )}
-        <form onSubmit={submit} noValidate>
+        {success ? (
+          <div style={{ backgroundColor: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', padding: 12, borderRadius: 8, marginBottom: 12 }} aria-live="polite">
+            <strong style={{ display: 'block', marginBottom: 6 }}>Success</strong>
+            <div>{success}</div>
+          </div>
+        ) : (
+          <form onSubmit={submit} noValidate>
           <Field label="Email">
             <Input
               value={email}
@@ -321,6 +325,7 @@ export default function Register() {
             {pending ? 'Creating…' : 'Register'}
           </Button>
         </form>
+        )}
         <div className={styles.footer}>
           Already have an account? <a className={styles.link} href="/login">Sign in</a>
         </div>
