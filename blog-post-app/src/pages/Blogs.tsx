@@ -288,11 +288,21 @@ export default function Blogs() {
           list.map(async (p: BlogPostListItem): Promise<SpotlightItem> => {
             try {
               const detail = await getPostBySlug(p.slug);
-              const hero = (detail as any).heroUrl ?? (detail as any).heroImageUrl;
+              let hero = (detail as any).heroUrl ?? (detail as any).heroImageUrl;
+              let imageUrl = normalizeHeroUrl(hero);
+              // If server didn't provide a hero, try listing assets folder for jpg/png
+              if (!imageUrl) {
+                try {
+                  const assets = await (await import('../lib/apis')).getPostAssets(p.slug);
+                  if (Array.isArray(assets) && assets.length > 0) imageUrl = assets[0];
+                } catch {
+                  // ignore asset listing errors and fall back to placeholder
+                }
+              }
               return {
                 slug: p.slug,
                 title: p.title,
-                image: normalizeHeroUrl(hero),
+                image: imageUrl,
                 author: (detail as any).author?.name ?? (typeof (detail as any).author === 'string' ? (detail as any).author : 'Unknown'),
                 category: (detail as any).category?.name ?? undefined,
                 views: (detail as any).views ?? (p.views ?? 0),
@@ -395,10 +405,10 @@ export default function Blogs() {
           {!loading && !error && pageItems.length > 0 && (
             <div className={styles.grid}>
               {pageItems.map((post) => (
-                <SpotlightCard
+          <SpotlightCard
                   key={post.slug}
                   name={post.title || 'Untitled'}
-                  image={typeof post.image === 'string' ? post.image : '/placeholder.jpg'}
+            image={typeof post.image === 'string' ? post.image : '/static/placeholder.jpg'}
                   slug={post.slug}
                   author={post.author || 'Unknown'}
                   views={typeof post.views === 'number' ? post.views : 0}

@@ -293,3 +293,16 @@ export async function createCategory(name: string, token: string): Promise<{ id:
 
   throw new Error('Invalid JSON from create category');
 }
+
+export async function getPostAssets(slug: string): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/api/blogposts/slug/${encodeURIComponent(slug)}/assets`);
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error('Failed to load post assets');
+  try {
+    const txt = await res.text();
+    if (!txt) return [];
+    return JSON.parse(txt) as string[];
+  } catch {
+    return [];
+  }
+}

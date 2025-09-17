@@ -194,6 +194,33 @@ namespace BlogPostSiteAPI.Controllers
 
         }
 
+        // GET api/blogposts/slug/{slug}/assets
+        // Returns a small list of public URLs for common image files (.jpg, .png) in the post's assets folder.
+        [HttpGet("slug/{slug}/assets")]
+        public IActionResult GetAssetsForSlug(string slug)
+        {
+            try
+            {
+                var postFolder = _storage.GetPostFolderAbsolutePath(slug);
+                if (!Directory.Exists(postFolder)) return NotFound();
+
+                var assetsFolder = Path.Combine(postFolder, "assets");
+                if (!Directory.Exists(assetsFolder)) return Ok(Array.Empty<string>());
+
+                // Only list top-level files in the assets folder; avoid expensive recursion
+                var files = Directory.GetFiles(assetsFolder)
+                    .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                var urls = files.Select(f => _storage.BuildPublicUrl(f)).ToList();
+                return Ok(urls);
+            }
+            catch
+            {
+                return StatusCode(500);
+            }
+        }
+
         // POST api/blogposts/upload
     [HttpPost("upload")]
     [Authorize(Policy = "Admin")]

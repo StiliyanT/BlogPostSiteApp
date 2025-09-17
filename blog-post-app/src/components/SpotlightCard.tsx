@@ -1,4 +1,5 @@
-import type { FC } from "react";
+import React, { useEffect, useState } from "react";
+import type { FC } from 'react';
 import { Card, makeStyles } from "@fluentui/react-components";
 import { useNavigate } from "react-router-dom";
 
@@ -124,55 +125,52 @@ const useStyles = makeStyles({
 const SpotlightCard: FC<SpotlightCardProps> = ({ name, image, slug, author, views, likes, createdOn, to, isNew, onClick }) => {
   const styles = useStyles();
   const dateLabel = createdOn ? new Date(createdOn).toLocaleDateString() : null;
+  const [imgSrc, setImgSrc] = useState<string | undefined>(undefined);
+
+  // Build a small deterministic candidate list and pick the first available source.
+  useEffect(() => {
+    if (image) { setImgSrc(image); return; }
+    if (!slug) { setImgSrc('/static/placeholder.jpg'); return; }
+    const base = `/static/posts/${slug}/assets`;
+    const candidates = [
+      `${base}/image.jpg`,
+      `${base}/image.png`,
+      `${base}/hero.jpg`,
+      `${base}/hero.png`
+    ];
+    setImgSrc(candidates[0]);
+    // store candidate list on the element via dataset when onError triggers
+  }, [image, slug]);
 
   const content = (
     <Card className={styles.card} role={to ? 'link' : undefined}>
       <div style={{ position: "relative", width: "100%", height: "180px", overflow: "hidden", backgroundColor: "#111827" }}>
         <img
-          src={image}
+          src={imgSrc || '/static/placeholder.jpg'}
           alt={name}
           loading="lazy"
           decoding="async"
           style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
           onError={(e) => {
             const img = e.currentTarget as HTMLImageElement;
-            // Keep track of attempted fallbacks to avoid loops
-            const tried = (img.dataset.triedFallbacks || '').split(',').filter(Boolean);
-            const files = ['hero.jpg', 'hero.png', 'image.png', 'image.jpg'];
-            const bases: string[] = [];
-            if (typeof slug === 'string' && slug) {
-              bases.push(`/static/posts/${slug}/assets`);
-              bases.push(`/static/posts/posts/${slug}/assets`);
-            }
-
-            // If the current src already has a filename, mark it tried
             try {
-              const currentName = img.src.split('/').pop() || '';
-              if (currentName && !tried.includes(currentName)) tried.push(currentName);
-            } catch { /* ignore parsing errors */ }
-
-            // Build candidate paths and pick the next one we haven't tried
-            let picked: string | undefined;
-            for (const b of bases) {
+              const tried = (img.dataset.triedFallbacks || '').split(',').filter(Boolean);
+              const base = slug ? `/static/posts/${slug}/assets` : '';
+              const files = ['image.jpg','image.png','hero.jpg','hero.png'];
+              // find next untried
+              let next: string | undefined;
               for (const f of files) {
-                const candidate = `${b}/${f}`;
-                if (!tried.includes(candidate) && picked === undefined) {
-                  picked = candidate;
-                }
+                const cand = base ? `${base}/${f}` : f;
+                if (!tried.includes(cand)) { next = cand; break; }
               }
-            }
-
-            if (picked) {
-              tried.push(picked);
-              img.dataset.triedFallbacks = tried.join(',');
-              img.src = picked;
-              // eslint-disable-next-line no-console
-              console.warn('[SpotlightCard] image failed, trying fallback static path', img.src);
-              return;
-            }
-
-            // final fallback
-            img.dataset.triedFallbacks = tried.join(',');
+              if (next) {
+                tried.push(next);
+                img.dataset.triedFallbacks = tried.join(',');
+                img.src = next;
+                return;
+              }
+            } catch {}
+            try { img.onerror = null; } catch {}
             img.src = '/static/placeholder.jpg';
           }}
         />

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
     import { useParams, Link } from 'react-router-dom';
   import { getPostBySlug, type BlogPostDetail, trackPostView, toggleLike, getLikedPosts } from '../lib/apis';
     import MdxRenderer from '../components/MdxRenderer';
@@ -147,27 +147,33 @@ import React, { useEffect, useState, useRef } from 'react';
       // in the same order on every render). Compute hero safely when post is null.
       const hero = post ? ((post as any).heroUrl ?? (post as any).heroImageUrl) : undefined;
       const [imgSrc, setImgSrc] = useState<string | null>(null);
-      const attemptIndexRef = useRef<number>(0);
-      const candidatesRef = useRef<string[] | undefined>(undefined);
 
-      // Build a candidate list when hero or slug changes. First candidate is the API-provided hero (normalized),
-      // then try common filenames inside the post's assets folder, then fall back to a placeholder.
+      // Simplified: prefer server-provided heroUrl, otherwise use the canonical
+      // assets image path. On error we immediately fall back to a single
+      // placeholder and do not retry repeatedly.
       useEffect(() => {
-      attemptIndexRef.current = 0;
         if (!slug) { setImgSrc(null); return; }
-        const candidates: string[] = [];
-        if (hero) candidates.push(toAbsolute(hero));
-        const bases = [`/static/posts/${slug}/assets`, `/static/posts/posts/${slug}/assets`];
-        for (const b of bases) {
-          candidates.push(`${b}/hero.jpg`);
-          candidates.push(`${b}/hero.png`);
-          candidates.push(`${b}/image.png`);
-          candidates.push(`${b}/image.jpg`);
+        if (hero) {
+          setImgSrc(toAbsolute(hero));
+          return;
         }
-        candidates.push('/static/placeholder.jpg');
-        setImgSrc(candidates[0] ?? null);
-        // store candidates on the ref so onError can advance through them
-      candidatesRef.current = candidates;
+        // No hero: ask the API for assets (first jpg/png) and use it if available
+        let cancelled = false;
+        (async () => {
+          try {
+            const { getPostAssets } = await import('../lib/apis');
+            const assets = await getPostAssets(slug);
+            if (cancelled) return;
+            if (Array.isArray(assets) && assets.length > 0) {
+              setImgSrc(assets[0]);
+              return;
+            }
+          } catch {
+            // ignore
+          }
+          if (!cancelled) setImgSrc(`/static/posts/${slug}/assets/image.jpg`);
+        })();
+        return () => { cancelled = true; };
       }, [hero, slug]);
 
     if (error === 'not-found') {
@@ -267,20 +273,17 @@ import React, { useEffect, useState, useRef } from 'react';
               </div>
             </div>
 
-            {hero || imgSrc ? (
+            {imgSrc ? (
               <img
-                src={imgSrc ?? undefined}
+                src={imgSrc}
                 alt={post.title || ''}
                 className={styles.heroImg}
-                onError={() => {
+                onError={(e) => {
                   try {
-                    const candidates: string[] = candidatesRef.current || [];
-                    attemptIndexRef.current += 1;
-                    const next = candidates[attemptIndexRef.current];
-                    if (next) setImgSrc(next);
-                  } catch {
-                    // ignore
-                  }
+                    const img = e.currentTarget as HTMLImageElement;
+                    try { img.onerror = null; } catch {}
+                    setImgSrc('/static/placeholder.jpg');
+                  } catch {}
                 }}
               />
             ) : null}
