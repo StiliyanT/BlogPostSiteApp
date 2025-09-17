@@ -169,7 +169,12 @@ export default function Register() {
       );
   // Rely on token-driven redirect in routes; no manual navigate
     } catch (e: unknown) {
-      const msg = e && typeof e === 'object' && 'message' in (e as any) ? (e as any).message as string : 'Registration failed';
+      let msg = e && typeof e === 'object' && 'message' in (e as any) ? (e as any).message as string : String(e ?? 'Registration failed');
+      // Defensive mapping: some login/register error paths still surface a generic 'Login failed'
+      // message to the client. When that happens during registration, provide a helpful next-step.
+      if (typeof msg === 'string' && msg.toLowerCase().includes('login failed')) {
+        msg = 'Account created but automatic sign-in failed; please sign in manually or check your email for confirmation.';
+      }
       setError(msg);
     } finally {
       setPending(false);

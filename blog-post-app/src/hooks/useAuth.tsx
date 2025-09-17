@@ -54,13 +54,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ email, password })
     });
     if (!res.ok) {
+      // Try to extract a helpful message from the server response.
       try {
         const data = await res.json();
-        if (data?.error === 'Email not confirmed') {
-          throw new Error('Please confirm your email before signing in.');
+        const serverMsg = data?.error ?? data?.message ?? (Array.isArray(data) && data[0]?.description) ?? null;
+        if (typeof serverMsg === 'string' && serverMsg.length > 0) {
+          if (serverMsg.toLowerCase().includes('confirm')) {
+            throw new Error('Please confirm your email before signing in.');
+          }
+          throw new Error(serverMsg);
         }
-      } catch {}
-      throw new Error('Login failed');
+      } catch (parseErr) {
+        // ignore parse errors and fall through to generic message
+      }
+      // Fallback: include HTTP status for diagnosability
+      throw new Error(`Login failed (${res.status} ${res.statusText})`);
     }
     const data = await res.json();
     const token = data?.token as string;
